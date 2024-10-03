@@ -1,7 +1,5 @@
-import Vectors
+from Vectors import *
 
-#Just because Pylance is being stupid
-import jax 
-import jax.numpy as jnp 
+vector1 = vector3D(2, 3, 4)
 
-print(jnp.dot())
+print(vector1.magnitude())

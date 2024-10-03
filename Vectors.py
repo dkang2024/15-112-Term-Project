@@ -61,11 +61,12 @@ class vector3D():
     def nonmutatingNormalize(self):
         return vector3D(*(self.vector / self.magnitude()))
 
-if __name__ == '__main__':
+def testFunctions():
     vector1 = vector3D(0, 5, 2)
     vector2 = vector3D(5, 2, 3)
-    vector3 = vector1.nonmutatingNormalize()
     vector1 = -vector1
     print(vector1.vector)
     print(distanceBetweenVectors(vector1.vector, vector2.vector))
 
+if __name__ == '__main__':
+    testFunctions()
