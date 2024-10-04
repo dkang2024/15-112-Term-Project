@@ -27,16 +27,16 @@ class vector3D():
         self.vector = jnp.array([x, y, z], dtype=dataType)
 
     def __add__(self, vector2):
-        return addVectors(self.vector, vector2.vector)
+        return vector3D(*addVectors(self.vector, vector2.vector))
     
     def __sub__(self, vector2):
-        return addVectors(self.vector, -vector2.vector)
+        return vector3D(*addVectors(self.vector, -vector2.vector))
     
     def __mul__(self, vector2):
-        return vectorDotProduct(self.vector, vector2.vector)
+        return vector3D(*vectorDotProduct(self.vector, vector2.vector))
     
     def __matmul__(self, vector2):
-        return vectorCrossProduct(self.vector, vector2.vector)
+        return vector3D(*vectorCrossProduct(self.vector, vector2.vector))
     
     def __neg__(self):
         newVec = -self.vector
@@ -70,7 +70,7 @@ def testFunctions():
     vector2 = vector3D(5, 2, 3)
     vector1 = -vector1
     print(vector1.vector)
-    print(distanceBetweenVectors(vector1.vector, vector2.vector))
+    print((vector1 + vector2).vector)
     print(repr(vector1))
 
 if __name__ == '__main__':
