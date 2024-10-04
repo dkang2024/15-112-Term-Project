@@ -21,6 +21,8 @@ def distanceBetweenVectors(vector1, vector2):
     return jnp.sqrt(jnp.sum(jnp.square(vector2) - jnp.square(vector1)))
 
 class vector3D():
+    __slots__ = ('vector')
+
     def __init__(self, x, y, z, dataType = jnp.float32):
         self.vector = jnp.array([x, y, z], dtype=dataType)
 
@@ -40,6 +42,9 @@ class vector3D():
         newVec = -self.vector
         return vector3D(*newVec)
     
+    def __repr__(self):
+        return f'x: {self.vector[0]}, y: {self.vector[1]}, z: {self.vector[2]}'
+    
     def add(self, vector2):
         self.vector = addVectors(self.vector, vector2.vector)
 
@@ -55,18 +60,18 @@ class vector3D():
     def magnitude(self):
         return jnp.sqrt(jnp.dot(self.vector, self.vector))
     
-    def mutatingNormalize(self):
+    def normalize(self, mutating=False):
+        if not mutating: 
+            return vector3D(*(self.vector / self.magnitude()))
         self.vector = self.vector / self.magnitude()
-
-    def nonmutatingNormalize(self):
-        return vector3D(*(self.vector / self.magnitude()))
-
+        
 def testFunctions():
     vector1 = vector3D(0, 5, 2)
     vector2 = vector3D(5, 2, 3)
     vector1 = -vector1
     print(vector1.vector)
     print(distanceBetweenVectors(vector1.vector, vector2.vector))
+    print(repr(vector1))
 
 if __name__ == '__main__':
     testFunctions()
