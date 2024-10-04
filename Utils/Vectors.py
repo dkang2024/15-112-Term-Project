@@ -63,14 +63,3 @@ class vector3D():
         if not mutating: 
             return vector3D(*(self.vector / self.magnitude()))
         self.vector = self.vector / self.magnitude()
-        
-def testFunctions():
-    vector1 = vector3D(0, 5, 2)
-    vector2 = vector3D(5, 2, 3)
-    vector1 = -vector1
-    print(vector1.vector)
-    print((vector1 + vector2).vector)
-    print(repr(vector1))
-
-if __name__ == '__main__':
-    testFunctions()
