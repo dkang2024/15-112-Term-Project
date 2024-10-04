@@ -11,6 +11,5 @@ def generateAddVectors(numTests):
 def testFunction():
     print(vector3D(1, 2, 3))
     assert False == False
-
-print(generateAddVectors(2))
+    
 testFunction()
