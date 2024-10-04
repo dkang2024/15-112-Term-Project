@@ -5,25 +5,25 @@ import jax.numpy as jnp
 import jax 
 
 @jax.jit
-def addVectors(vector1, vector2):
+def addVectors(vector1: jax.Array, vector2: jax.Array) -> jax.Array: 
     return vector1 + vector2 
 
 @jax.jit 
-def vectorDotProduct(vector1, vector2):
+def vectorDotProduct(vector1: jax.Array, vector2: jax.Array) -> jax.Array:
     return jnp.dot(vector1, vector2)
 
 @jax.jit
-def vectorCrossProduct(vector1, vector2):
+def vectorCrossProduct(vector1: jax.Array, vector2: jax.Array) -> jax.Array:
     return jnp.cross(vector1, vector2)
 
 @jax.jit 
-def distanceBetweenVectors(vector1, vector2):
+def distanceBetweenVectors(vector1: jax.Array, vector2: jax.Array) -> float:
     return jnp.sqrt(jnp.sum(jnp.square(vector2) - jnp.square(vector1)))
 
 class vector3D():
     __slots__ = ('vector')
 
-    def __init__(self, x, y, z, dataType = jnp.float32):
+    def __init__(self, x: float, y: float, z: float, dataType = jnp.float32):
         self.vector = jnp.array([x, y, z], dtype=dataType)
 
     def __add__(self, vector2):
@@ -39,8 +39,7 @@ class vector3D():
         return vector3D(*vectorCrossProduct(self.vector, vector2.vector))
     
     def __neg__(self):
-        newVec = -self.vector
-        return vector3D(*newVec)
+        return vector3D(*-self.vector)
     
     def __repr__(self):
         return f'x: {self.vector[0]}, y: {self.vector[1]}, z: {self.vector[2]}'
@@ -60,7 +59,7 @@ class vector3D():
     def magnitude(self):
         return jnp.sqrt(jnp.dot(self.vector, self.vector))
     
-    def normalize(self, mutating=False):
+    def normalize(self, mutating = False):
         if not mutating: 
             return vector3D(*(self.vector / self.magnitude()))
         self.vector = self.vector / self.magnitude()
