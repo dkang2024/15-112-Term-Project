@@ -44,6 +44,9 @@ class vector3D():
     def __repr__(self):
         return f'x: {self.vector[0]}, y: {self.vector[1]}, z: {self.vector[2]}'
     
+    def __eq__(self, vector2):
+        return jnp.array_equal(self.vector, vector2.vector)
+    
     def add(self, vector2):
         self.vector = addVectors(self.vector, vector2.vector)
 
