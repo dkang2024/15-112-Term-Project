@@ -8,7 +8,8 @@ posVector, negVector = vector3D(x, y, z), vector3D(-x, -y, -z)
     (posVector, posVector, True),
     (posVector, -negVector, True),
     (posVector, -posVector, False),
-    (posVector.scalarMultiply(0), negVector.scalarMultiply(0), True)   
+    (posVector.scalarMultiply(0), negVector.scalarMultiply(0), True),
+    (posVector.scalarMultiply(2), negVector.scalarMultiply(-2), True)   
 ])
 def testEquality(vector1, vector2, isEqual):
     assert (vector1 == vector2) == isEqual
