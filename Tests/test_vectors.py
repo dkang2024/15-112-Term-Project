@@ -1,17 +1,15 @@
 from Utils.Vectors import *
 import pytest 
-import random as rand
 
-def genRand(lowRange = -100, highRange = 100):
-    return rand.randint(lowRange, highRange)
+x, y, z = 1, 3, 4
+posVector, negVector = vector3D(x, y, z), vector3D(-x, -y, -z)
 
-def generateTestArray(numTests):
-    testArray = []
-    for _ in range(numTests):
-        posTuple1, posTuple2 = [genRand() for _ in range(3)], [genRand() for _ in range(3)]
-        addTuple = [pos1 + pos2 for pos1, pos2 in zip(posTuple1, posTuple2)]
-        testArray.append(jnp.array(posTuple1), jnp.array(posTuple2), jnp.array(addTuple))
-    return testArray 
-
-def testFunction():
-    assert vector3D(1, 2, 3) == vector3D(1, 2, 3)
+@pytest.mark.parametrize('vector1, vector2, isEqual', [
+    (posVector, posVector, True),
+    (posVector, -negVector, True),
+    (posVector, -posVector, False),
+    (posVector.scalarMultiply(0), negVector.scalarMultiply(0), True)   
+])
+def testEquality(vector1, vector2, isEqual):
+    assert (vector1 == vector2) == isEqual
+    

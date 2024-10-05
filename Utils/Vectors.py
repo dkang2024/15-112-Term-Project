@@ -46,12 +46,17 @@ class vector3D():
     
     def __eq__(self, vector2):
         return jnp.array_equal(self.vector, vector2.vector)
-    
+
     def add(self, vector2):
         self.vector = addVectors(self.vector, vector2.vector)
 
     def subtract(self, vector2):
         self.vector = addVectors(self.vector, -vector2.vector)
+
+    def scalarMultiply(self, scalar, mutating = False):
+        if not mutating:
+            return vector3D(*(self.vector * scalar))
+        self.vector = self.vector * scalar
     
     def dotProduct(self, vector2):
         self.vector = vectorDotProduct(self.vector, vector2.vector)
