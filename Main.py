@@ -1,5 +1,10 @@
 from Utils import *
 
-vector1 = vector3D(2, 3, 4)
+v1 = vec3(2, 3, 4)
+v2 = ray3(v1, v1)
 
-print(vector1.magnitude())
+@ti.kernel 
+def determinePointOnRay(t: float) -> vec3: #type: ignore 
+    return v2.pointOnRay(t)
+
+print(determinePointOnRay(1))
