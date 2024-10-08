@@ -8,4 +8,7 @@ class ray3:
 
     @ti.func 
     def pointOnRay(self, t: float) -> float: 
+        '''
+        Get a point on the ray using the parametric equation
+        '''
         return self.origin + self.direction * t
