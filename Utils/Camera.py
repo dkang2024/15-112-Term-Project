@@ -65,5 +65,5 @@ class Camera:
             pixelPos = self.initPixelPos + i * self.pixelDX + j * self.pixelDY 
             rayDir = pixelPos - self.cameraPos 
             cameraRay = ray3(self.cameraPos, rayDir)
-            self.pixelField[i, j] = getRayColor(cameraRay, sphere3(vec3(0, 0, -1), 0.5))
+            self.pixelField[i, j] = getRayColor(cameraRay, sphere3(vec3(0, 0, -2), 0.5))
         
