@@ -7,3 +7,4 @@ sys.path.append(os.path.join(WORKING_DIR, 'Utils'))
 from Vectors import *
 from Rays import *
 from Camera import *
+from Objects import *
