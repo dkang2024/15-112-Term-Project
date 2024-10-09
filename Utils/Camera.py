@@ -36,8 +36,8 @@ def calculateFirstPixelPos(cameraPos: vec3, viewportWidthVector: vec3, viewportH
 
 @ti.func 
 def getRayColor(ray, sphere):
-    colorReturn = vec3(1, 0, 0)
-    if not intersectSphere(ray.origin, ray.direction, sphere.center, sphere.radius):
+    colorReturn, t = vec3(1, 0, 0), intersectSphere(ray.origin, ray.direction, sphere.center, sphere.radius)
+    if t < 0.0:
         rayDir = tm.normalize(ray.direction)
         a = 0.5 * (rayDir + 1)
         colorReturn = (1 - a) * vec3(1, 1, 1) + a * vec3(0.5, 0.7, 1.0)
@@ -65,5 +65,5 @@ class Camera:
             pixelPos = self.initPixelPos + i * self.pixelDX + j * self.pixelDY 
             rayDir = pixelPos - self.cameraPos 
             cameraRay = ray3(self.cameraPos, rayDir)
-            self.pixelField[i, j] = getRayColor(cameraRay, sphere3(vec3(0, 0, -2), 0.5))
+            self.pixelField[i, j] = getRayColor(cameraRay, sphere3(vec3(0, 0, -5), 0.5))
         
