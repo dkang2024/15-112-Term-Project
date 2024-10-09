@@ -1,10 +1,13 @@
 from Utils import *
 
-v1 = vec3(2, 3, 4)
-v2 = ray3(v1, v1)
+def renderScene(cameraPos: vec3, imageWidth: int, viewportWidth: float, focalLength: float, aspectRatio: float): #type: ignore
+    camera = Camera(cameraPos, imageWidth, viewportWidth, focalLength, aspectRatio)
+    gui = ti.ui.Window('Render Test', res = (camera.imageWidth, camera.imageHeight))
+    canvas = gui.get_canvas()
 
-@ti.kernel 
-def determinePointOnRay(t: float) -> vec3: #type: ignore 
-    return v2.pointOnRay(t)
+    while gui.running: 
+        camera.render()
+        canvas.set_image(camera.pixelField)
+        gui.show()
 
-print(determinePointOnRay(1))
+renderScene(vec3(0, 0, 0), 800, 2, 1, 16 / 9)
