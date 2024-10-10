@@ -40,13 +40,12 @@ class Camera(World):
     '''
     Class for a camera with render capabilities. Add on the world list to the camera for ease of use (Taichi kernels don't accept classes as arguments)
     '''
-
-    def __init__(self, cameraPos: vec3, imageWidth: int, viewportWidth: float, focalLength: float, aspectRatio: float): #type: ignore
+    def __init__(self, cameraPos: vec3, imageWidth: int, viewportWidth: float, focalLength: float, aspectRatio: float, tMin: float, tMax: float): #type: ignore
         super().__init__()
 
         self.imageWidth, self.imageHeight = imageWidth, calculateImageHeight(imageWidth, aspectRatio)
         self.viewportWidth, self.viewportHeight = viewportWidth, calculateViewportHeight(viewportWidth, self.imageWidth, self.imageHeight)
-        self.cameraPos = cameraPos
+        self.cameraPos, self.tMin, self.tMax = cameraPos, tMin, tMax
         
         viewportWidthVector, viewportHeightVector = vec3(self.viewportWidth, 0, 0), vec3(0, self.viewportHeight, 0) 
         self.pixelDX, self.pixelDY = calculatePixelDelta(viewportWidthVector, self.imageWidth), calculatePixelDelta(viewportHeightVector, self.imageHeight) 
@@ -57,14 +56,15 @@ class Camera(World):
     @ti.func 
     def getRayColor(self, ray):
         colorReturn = vec3(1, 0, 0)
-        t, center = self.hitObjects(ray.origin, ray.direction)
-        if t < 0.0:
+        didHit, t, normalVector, frontFace = self.hitObjects(self.tMin, self.tMax, ray)
+        
+        if not didHit:
             rayDirY = tm.normalize(ray.direction)[1]
             a = 0.5 * (rayDirY + 1)
             colorReturn = (1 - a) * vec3(1, 1, 1) + a * vec3(0.5, 0.7, 1.0)
         else: 
-            N = ray.pointOnRay(t) - center
-            colorReturn = 0.5 * vec3(*(N + 1))
+            colorReturn = 0.5 * vec3(*(normalVector + 1))
+        
         return colorReturn
     
     @ti.kernel
