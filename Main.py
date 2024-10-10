@@ -1,6 +1,6 @@
 from Utils import *
 
-def renderScene(cameraPos: vec3, imageWidth: int, viewportWidth: float, focalLength: float, aspectRatio: float, tMin = 0.001, tMax = 1e10): #type: ignore
+def renderScene(cameraPos: vec3, imageWidth: int, viewportWidth: float, focalLength: float, aspectRatio: float, tMin = 0.0001, tMax = 1e10): #type: ignore
     camera = Camera(cameraPos, imageWidth, viewportWidth, focalLength, aspectRatio, tMin, tMax)
     camera.addHittable(sphere3(vec3(0, 0, -2), 0.5))
     camera.addHittable(sphere3(vec3(0, -100.5, -1), 100))
