@@ -9,5 +9,5 @@ def renderScene(cameraPos: vec3, imageWidth: int, viewportWidth: float, focalLen
         camera.render()
         canvas.set_image(camera.pixelField)
         gui.show()
-
+        
 renderScene(vec3(0, 0, 0), 800, 2, 1, 16 / 9)

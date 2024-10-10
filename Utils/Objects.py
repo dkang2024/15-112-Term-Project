@@ -28,21 +28,22 @@ def simplifiedQuadFormula(a, h, discriminant):
     '''
     return (h - discriminant ** 0.5) / a 
 
-@ti.dataclass 
+@ti.data_oriented
 class sphere3: 
-    center: vec3 #type:ignore 
-    radius: float 
-
-@ti.func
-def intersectSphere(rayStart, rayDirection, sphereStart, sphereRadius): 
-    '''
-    Check whether a ray intersects with a sphere and return t = -1.0 if it doesn't
-    '''
-    rayToSphereCenter = sphereStart - rayStart 
-    a, h, c = tm.dot(rayDirection, rayDirection), tm.dot(rayDirection, rayToSphereCenter), tm.dot(rayToSphereCenter, rayToSphereCenter) - sphereRadius ** 2
-    discriminant = simplifiedDiscriminant(a, c, h)
     
-    t = -1.0
-    if discriminant >= 0:
-        t = simplifiedQuadFormula(a, h, discriminant)
-    return t
+    def __init__(self, center, radius):
+        self.center, self.radius = center, radius
+
+    @ti.func
+    def hit(self, rayStart, rayDir, ): 
+        '''
+        Check whether a ray intersects with a sphere and return t = -1.0 if it doesn't
+        '''
+        rayToSphereCenter = self.center - rayStart 
+        a, h, c = tm.dot(rayDir, rayDir), tm.dot(rayDir, rayToSphereCenter), tm.dot(rayToSphereCenter, rayToSphereCenter) - self.radius ** 2
+        discriminant = simplifiedDiscriminant(a, c, h)
+        
+        t = -1.0
+        if discriminant >= 0:
+            t = simplifiedQuadFormula(a, h, discriminant)
+        return t

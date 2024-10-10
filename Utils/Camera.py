@@ -1,6 +1,7 @@
 from Vectors import *
 from Rays import *
 from Objects import *
+from World import *
 
 import warnings
 warnings.filterwarnings("ignore") #Taichi throws warnings because classes are used in ti.kernel. We want to ignore these warnings (the classes are specifically designed to allow taichi to work)
@@ -34,9 +35,12 @@ def calculateFirstPixelPos(cameraPos: vec3, viewportWidthVector: vec3, viewportH
     viewportUpperLeftPos = cameraPos - vec3(0, 0, focalLength) - (viewportWidthVector + viewportHeightVector) / 2
     return viewportUpperLeftPos + (pixelDX + pixelDY) / 2
 
+newWorld = World()
+newWorld.addHittable(sphere3(vec3(0, 0, -2), 0.5))
+
 @ti.func 
-def getRayColor(ray, sphere):
-    colorReturn, t = vec3(1, 0, 0), intersectSphere(ray.origin, ray.direction, sphere.center, sphere.radius)
+def getRayColor(ray):
+    colorReturn, t = vec3(1, 0, 0), newWorld.hitObjects(ray.origin, ray.direction)
     if t < 0.0:
         rayDir = tm.normalize(ray.direction)
         a = 0.5 * (rayDir + 1)
@@ -45,6 +49,10 @@ def getRayColor(ray, sphere):
 
 @ti.data_oriented 
 class Camera: 
+    '''
+    Class for a camera with render capabilities
+    '''
+
     def __init__(self, cameraPos: vec3, imageWidth: int, viewportWidth: float, focalLength: float, aspectRatio: float): #type: ignore
         self.imageWidth, self.imageHeight = imageWidth, calculateImageHeight(imageWidth, aspectRatio)
         self.viewportWidth, self.viewportHeight = viewportWidth, calculateViewportHeight(viewportWidth, self.imageWidth, self.imageHeight)
@@ -65,5 +73,5 @@ class Camera:
             pixelPos = self.initPixelPos + i * self.pixelDX + j * self.pixelDY 
             rayDir = pixelPos - self.cameraPos 
             cameraRay = ray3(self.cameraPos, rayDir)
-            self.pixelField[i, j] = getRayColor(cameraRay, sphere3(vec3(0, 0, -5), 0.5))
+            self.pixelField[i, j] = getRayColor(cameraRay)
         
