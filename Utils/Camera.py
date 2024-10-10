@@ -41,12 +41,12 @@ class Camera(World):
     '''
     Class for a camera with render capabilities. Add on the world list to the camera for ease of use (Taichi kernels don't accept classes as arguments)
     '''
-    def __init__(self, cameraPos: vec3, imageWidth: int, viewportWidth: float, focalLength: float, aspectRatio: float, tMin: float, tMax: float, samplesPerPixel: int): #type: ignore
+    def __init__(self, cameraPos: vec3, imageWidth: int, viewportWidth: float, focalLength: float, aspectRatio: float, tMin: float, tMax: float, samplesPerPixel: int, maxDepth: int): #type: ignore
         super().__init__()
 
         self.imageWidth, self.imageHeight = imageWidth, calculateImageHeight(imageWidth, aspectRatio)
         self.viewportWidth, self.viewportHeight = viewportWidth, calculateViewportHeight(viewportWidth, self.imageWidth, self.imageHeight)
-        self.cameraPos, self.tInterval, self.samplesPerPixel = cameraPos, Interval(tMin, tMax), samplesPerPixel
+        self.cameraPos, self.tInterval, self.samplesPerPixel, self.maxDepth = cameraPos, Interval(tMin, tMax), samplesPerPixel, maxDepth
         
         viewportWidthVector, viewportHeightVector = vec3(self.viewportWidth, 0, 0), vec3(0, self.viewportHeight, 0) 
         self.pixelDX, self.pixelDY = calculatePixelDelta(viewportWidthVector, self.imageWidth), calculatePixelDelta(viewportHeightVector, self.imageHeight) 
@@ -56,15 +56,19 @@ class Camera(World):
        
     @ti.func 
     def getRayColor(self, ray):
-        colorReturn = vec3(1, 0, 0)
-        didHit, t, normalVector, frontFace = self.hitObjects(self.tInterval, ray)
+        colorReturn = vec3(0, 0, 0)
         
-        if not didHit:
-            rayDirY = tm.normalize(ray.direction)[1]
-            a = 0.5 * (rayDirY + 1)
-            colorReturn = (1 - a) * vec3(1, 1, 1) + a * vec3(0.5, 0.7, 1.0)
-        else: 
-            colorReturn = 0.5 * vec3(*(normalVector + 1))
+        for _ in range(self.maxDepth):
+            didHit, t, normalVector, frontFace = self.hitObjects(self.tInterval, ray)
+            
+            if didHit:
+                colorReturn *= 0.5 
+                ray = ray3(ray.pointOnRay(t), randomInNormalDirection(normalVector))
+            else:
+                rayDirY = getY(tm.normalize(ray.direction))
+                a = 0.5 * (rayDirY + 1)
+                colorReturn = (1 - a) * vec3(1, 1, 1) + a * vec3(0.5, 0.7, 1.0)
+                break
         
         return colorReturn
     

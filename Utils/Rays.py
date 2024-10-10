@@ -1,12 +1,12 @@
 from Vectors import *
 
-@ti.data_oriented
+@ti.dataclass
 class ray3:
     '''
     Class for a ray starting from an origin and heading into a direction given by another vector
     '''
-    def __init__(self, origin: vec3, direction: vec3): #type: ignore
-        self.origin, self.direction = origin, direction 
+    origin: vec3 #type: ignore 
+    direction: vec3 #type: ignore
 
     @ti.func 
     def pointOnRay(self, t: float) -> float: 
