@@ -2,6 +2,7 @@ from Vectors import *
 from Rays import *
 from Objects import *
 from World import *
+from Interval import *
 
 import warnings
 warnings.filterwarnings("ignore") #Taichi throws warnings because classes are used in ti.kernel. We want to ignore these warnings (the classes are specifically designed to allow taichi to work)
@@ -45,7 +46,8 @@ class Camera(World):
 
         self.imageWidth, self.imageHeight = imageWidth, calculateImageHeight(imageWidth, aspectRatio)
         self.viewportWidth, self.viewportHeight = viewportWidth, calculateViewportHeight(viewportWidth, self.imageWidth, self.imageHeight)
-        self.cameraPos, self.tMin, self.tMax = cameraPos, tMin, tMax
+        self.cameraPos = cameraPos
+        self.tInterval = Interval(tMin, tMax)
         
         viewportWidthVector, viewportHeightVector = vec3(self.viewportWidth, 0, 0), vec3(0, self.viewportHeight, 0) 
         self.pixelDX, self.pixelDY = calculatePixelDelta(viewportWidthVector, self.imageWidth), calculatePixelDelta(viewportHeightVector, self.imageHeight) 
@@ -56,7 +58,7 @@ class Camera(World):
     @ti.func 
     def getRayColor(self, ray):
         colorReturn = vec3(1, 0, 0)
-        didHit, t, normalVector, frontFace = self.hitObjects(self.tMin, self.tMax, ray)
+        didHit, t, normalVector, frontFace = self.hitObjects(self.tInterval, ray)
         
         if not didHit:
             rayDirY = tm.normalize(ray.direction)[1]

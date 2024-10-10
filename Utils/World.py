@@ -15,13 +15,13 @@ class World:
         self.hittable.append(hittableObject)
 
     @ti.func
-    def hitObjects(self, tMin, tMax, ray):
+    def hitObjects(self, intervalT, ray):
         '''
         Iterate through the hittable objects list and check the smallest t that it intersects with to get the closest possible object
         '''
-        hitAnything, t, normalVector, frontFace = False, tMax, vec3(0, 0, 0), False
+        hitAnything, t, normalVector, frontFace = False, intervalT.max, vec3(0, 0, 0), False
         for i in ti.static(range(len(self.hittable))):
-            objectHit, objectT, objectNormal, objectFrontFace = self.hittable[i].hit(tMin, tMax, ray)
+            objectHit, objectT, objectNormal, objectFrontFace = self.hittable[i].hit(intervalT, ray)
             if objectHit and objectT < t: 
                 hitAnything, t, normalVector, frontFace = objectHit, objectT, objectNormal, objectFrontFace
 

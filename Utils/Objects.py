@@ -22,13 +22,6 @@ def findSphereNormalVector(ray, t, center):
     return tm.normalize(ray.pointOnRay(t) - center)
 
 @ti.func 
-def checkOutBounds(tMin, tMax, t):
-    '''
-    Check if t is outside of tMin and tMax
-    '''
-    return t < tMin or t > tMax 
-
-@ti.func 
 def isSphereFrontFace(ray, normalVector):
     '''
     Check if the ray is inside or outside the sphere using the dot product because my implementation for the normal vector of a sphere always points outwards from the center of the sphere
@@ -39,14 +32,14 @@ def isSphereFrontFace(ray, normalVector):
     return isOutsideSphere    
 
 @ti.func 
-def checkSphereIntersection(a, h, discriminant, tMin, tMax):
+def checkSphereIntersection(a, h, discriminant, intervalT):
     '''
     Check whether the ray-sphere intersection occurs within the range of tMin and tMax. Unfortunately cannot do this with a loop because Taichi disallows looping over anything else than its own values (so can't use a tuple to vary the sign and then use break).
     '''
     t = simplifiedQuadFormula(a, h, discriminant, -1.0)
-    if checkOutBounds(tMin, tMax, t):
+    if not intervalT.surrounds(t):
         t = simplifiedQuadFormula(a, h, discriminant, 1.0)
-        if checkOutBounds(tMin, tMax, t):
+        if intervalT.surrounds(t):
             t = -1.0
     return t >= 0, t
 
@@ -59,7 +52,7 @@ class sphere3():
         self.center, self.radius = center, radius
 
     @ti.func
-    def hit(self, tMin, tMax, ray): 
+    def hit(self, intervalT, ray): 
         '''
         Check whether a ray intersects with a sphere and return t = -1.0 if it doesn't
         '''
@@ -69,7 +62,7 @@ class sphere3():
         
         hitSphere, t, normalVector, frontFace = False, -1.0, vec3(0, 0, 0), False
         if discriminant >= 0:
-            hitSphere, t = checkSphereIntersection(a, h, discriminant, tMin, tMax)
+            hitSphere, t = checkSphereIntersection(a, h, discriminant, intervalT)
             if hitSphere:
                 normalVector = findSphereNormalVector(ray, t, self.center)
                 frontFace = isSphereFrontFace(ray, normalVector)
