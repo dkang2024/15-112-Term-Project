@@ -35,7 +35,7 @@ class sphere3:
         self.center, self.radius = center, radius
 
     @ti.func
-    def hit(self, rayStart, rayDir, ): 
+    def hit(self, rayStart, rayDir): 
         '''
         Check whether a ray intersects with a sphere and return t = -1.0 if it doesn't
         '''

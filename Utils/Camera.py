@@ -30,21 +30,25 @@ def calculatePixelDelta(viewportVector: vec3, imageLen: float) -> vec3: #type: i
 @ti.kernel
 def calculateFirstPixelPos(cameraPos: vec3, viewportWidthVector: vec3, viewportHeightVector: vec3, pixelDX: vec3, pixelDY: vec3, focalLength: float) -> vec3: #type: ignore
     '''
-    Calculates the position of the first pixel on the viewport in terms of the camera's coordinate system
+    Calculates the position of the first pixel on the viewport in terms of the world's coordinate system
     '''
-    viewportUpperLeftPos = cameraPos - vec3(0, 0, focalLength) - (viewportWidthVector + viewportHeightVector) / 2
-    return viewportUpperLeftPos + (pixelDX + pixelDY) / 2
+    viewportBottomLeftPos = cameraPos - vec3(0, 0, focalLength) - (viewportWidthVector + viewportHeightVector) / 2
+    return viewportBottomLeftPos + (pixelDX + pixelDY) / 2
 
+sphereCenter = vec3(0, 0, -2)
 newWorld = World()
-newWorld.addHittable(sphere3(vec3(0, 0, -2), 0.5))
+newWorld.addHittable(sphere3(sphereCenter, 0.5))
 
 @ti.func 
 def getRayColor(ray):
     colorReturn, t = vec3(1, 0, 0), newWorld.hitObjects(ray.origin, ray.direction)
     if t < 0.0:
-        rayDir = tm.normalize(ray.direction)
-        a = 0.5 * (rayDir + 1)
+        rayDirY = tm.normalize(ray.direction)[1]
+        a = 0.5 * (rayDirY + 1)
         colorReturn = (1 - a) * vec3(1, 1, 1) + a * vec3(0.5, 0.7, 1.0)
+    else: 
+        N = ray.pointOnRay(t) - sphereCenter
+        colorReturn = 0.5 * vec3(*(N + 1))
     return colorReturn
 
 @ti.data_oriented 
@@ -58,7 +62,7 @@ class Camera:
         self.viewportWidth, self.viewportHeight = viewportWidth, calculateViewportHeight(viewportWidth, self.imageWidth, self.imageHeight)
         self.cameraPos = cameraPos
         
-        viewportWidthVector, viewportHeightVector = vec3(self.viewportWidth, 0, 0), vec3(0, -self.viewportHeight, 0) #Note that we take the negative because the camera coordinates have up as positive, but the viewport coordinates have down as positive 
+        viewportWidthVector, viewportHeightVector = vec3(self.viewportWidth, 0, 0), vec3(0, self.viewportHeight, 0) 
         self.pixelDX, self.pixelDY = calculatePixelDelta(viewportWidthVector, self.imageWidth), calculatePixelDelta(viewportHeightVector, self.imageHeight) 
         self.initPixelPos = calculateFirstPixelPos(self.cameraPos, viewportWidthVector, viewportHeightVector, self.pixelDX, self.pixelDY, focalLength)
 

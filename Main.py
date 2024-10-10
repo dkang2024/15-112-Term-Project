@@ -2,6 +2,7 @@ from Utils import *
 
 def renderScene(cameraPos: vec3, imageWidth: int, viewportWidth: float, focalLength: float, aspectRatio: float): #type: ignore
     camera = Camera(cameraPos, imageWidth, viewportWidth, focalLength, aspectRatio)
+    print(camera.initPixelPos)
     gui = ti.ui.Window('Render Test', res = (camera.imageWidth, camera.imageHeight))
     canvas = gui.get_canvas()
 
