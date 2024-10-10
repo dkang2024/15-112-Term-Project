@@ -41,13 +41,12 @@ class Camera(World):
     '''
     Class for a camera with render capabilities. Add on the world list to the camera for ease of use (Taichi kernels don't accept classes as arguments)
     '''
-    def __init__(self, cameraPos: vec3, imageWidth: int, viewportWidth: float, focalLength: float, aspectRatio: float, tMin: float, tMax: float): #type: ignore
+    def __init__(self, cameraPos: vec3, imageWidth: int, viewportWidth: float, focalLength: float, aspectRatio: float, tMin: float, tMax: float, samplesPerPixel: int): #type: ignore
         super().__init__()
 
         self.imageWidth, self.imageHeight = imageWidth, calculateImageHeight(imageWidth, aspectRatio)
         self.viewportWidth, self.viewportHeight = viewportWidth, calculateViewportHeight(viewportWidth, self.imageWidth, self.imageHeight)
-        self.cameraPos = cameraPos
-        self.tInterval = Interval(tMin, tMax)
+        self.cameraPos, self.tInterval, self.samplesPerPixel = cameraPos, Interval(tMin, tMax), samplesPerPixel
         
         viewportWidthVector, viewportHeightVector = vec3(self.viewportWidth, 0, 0), vec3(0, self.viewportHeight, 0) 
         self.pixelDX, self.pixelDY = calculatePixelDelta(viewportWidthVector, self.imageWidth), calculatePixelDelta(viewportHeightVector, self.imageHeight) 
@@ -69,13 +68,37 @@ class Camera(World):
         
         return colorReturn
     
+    @ti.func 
+    def samplePixel(self):
+        '''
+        Returns a random vector with x and y ranging from [-0.5, 0.5] in order to get rays to sample random positions in the viewport for antialiasing
+        '''
+        return vec3(ti.random() - 0.5, ti.random() - 0.5, 0)
+
+    @ti.func 
+    def constructRay(self, i, j):
+        '''
+        Construct the ray from the camera to the viewport
+        '''
+        pixelOffset = self.samplePixel()
+        rayDir = self.initPixelPos + (i + pixelOffset) * self.pixelDX + (j + pixelOffset) * self.pixelDY - self.cameraPos
+        return ray3(self.cameraPos, rayDir)
+    
+    @ti.func 
+    def antialiasing(self, i, j):
+        '''
+        Implmement basic antialiasing for pixels
+        '''
+        pixelColor = vec3(0, 0, 0)
+        for _ in ti.static(range(self.samplesPerPixel)):
+            pixelColor += self.getRayColor(self.constructRay(i, j))
+        return pixelColor / self.samplesPerPixel
+
     @ti.kernel
     def render(self): 
         '''
         Render the camera's scene to a matrix that can be displayed
         '''
         for i, j in self.pixelField:
-            rayDir = self.initPixelPos + i * self.pixelDX + j * self.pixelDY - self.cameraPos
-            cameraRay = ray3(self.cameraPos, rayDir)
-            self.pixelField[i, j] = self.getRayColor(cameraRay)
+            self.pixelField[i, j] = self.antialiasing(i, j)
         
