@@ -35,29 +35,15 @@ def calculateFirstPixelPos(cameraPos: vec3, viewportWidthVector: vec3, viewportH
     viewportBottomLeftPos = cameraPos - vec3(0, 0, focalLength) - (viewportWidthVector + viewportHeightVector) / 2
     return viewportBottomLeftPos + (pixelDX + pixelDY) / 2
 
-sphereCenter = vec3(0, 0, -2)
-newWorld = World()
-newWorld.addHittable(sphere3(sphereCenter, 0.5))
-
-@ti.func 
-def getRayColor(ray):
-    colorReturn, t = vec3(1, 0, 0), newWorld.hitObjects(ray.origin, ray.direction)
-    if t < 0.0:
-        rayDirY = tm.normalize(ray.direction)[1]
-        a = 0.5 * (rayDirY + 1)
-        colorReturn = (1 - a) * vec3(1, 1, 1) + a * vec3(0.5, 0.7, 1.0)
-    else: 
-        N = ray.pointOnRay(t) - sphereCenter
-        colorReturn = 0.5 * vec3(*(N + 1))
-    return colorReturn
-
 @ti.data_oriented 
-class Camera: 
+class Camera(World): 
     '''
-    Class for a camera with render capabilities
+    Class for a camera with render capabilities. Add on the world list to the camera for ease of use (Taichi kernels don't accept classes as arguments)
     '''
 
     def __init__(self, cameraPos: vec3, imageWidth: int, viewportWidth: float, focalLength: float, aspectRatio: float): #type: ignore
+        super().__init__()
+
         self.imageWidth, self.imageHeight = imageWidth, calculateImageHeight(imageWidth, aspectRatio)
         self.viewportWidth, self.viewportHeight = viewportWidth, calculateViewportHeight(viewportWidth, self.imageWidth, self.imageHeight)
         self.cameraPos = cameraPos
@@ -67,15 +53,27 @@ class Camera:
         self.initPixelPos = calculateFirstPixelPos(self.cameraPos, viewportWidthVector, viewportHeightVector, self.pixelDX, self.pixelDY, focalLength)
 
         self.pixelField = ti.Vector.field(3, float, shape = (self.imageWidth, self.imageHeight))
-
+       
+    @ti.func 
+    def getRayColor(self, ray):
+        colorReturn = vec3(1, 0, 0)
+        t, center = self.hitObjects(ray.origin, ray.direction)
+        if t < 0.0:
+            rayDirY = tm.normalize(ray.direction)[1]
+            a = 0.5 * (rayDirY + 1)
+            colorReturn = (1 - a) * vec3(1, 1, 1) + a * vec3(0.5, 0.7, 1.0)
+        else: 
+            N = ray.pointOnRay(t) - center
+            colorReturn = 0.5 * vec3(*(N + 1))
+        return colorReturn
+    
     @ti.kernel
     def render(self): 
         '''
         Render the camera's scene to a matrix that can be displayed
         '''
         for i, j in self.pixelField:
-            pixelPos = self.initPixelPos + i * self.pixelDX + j * self.pixelDY 
-            rayDir = pixelPos - self.cameraPos 
+            rayDir = self.initPixelPos + i * self.pixelDX + j * self.pixelDY - self.cameraPos
             cameraRay = ray3(self.cameraPos, rayDir)
-            self.pixelField[i, j] = getRayColor(cameraRay)
+            self.pixelField[i, j] = self.getRayColor(cameraRay)
         

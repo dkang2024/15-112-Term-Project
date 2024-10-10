@@ -20,9 +20,9 @@ class World:
 
     @ti.func
     def hitObjects(self, rayStart, rayDir):
-        t = 0.0
+        t, center = 0.0, vec3(0, 0, 0)
         for i in ti.static(range(len(self.hittable))):
             hittableObject = self.hittable[i]
-            t = hittableObject.hit(rayStart, rayDir)
-        return t
+            t, center = hittableObject.hit(rayStart, rayDir), hittableObject.center
+        return t, center
     
