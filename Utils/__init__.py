@@ -8,3 +8,4 @@ from Vectors import *
 from Rays import *
 from Camera import *
 from Objects import *
+from World import *
