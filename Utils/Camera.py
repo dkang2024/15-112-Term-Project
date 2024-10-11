@@ -15,11 +15,11 @@ def calculateImageHeight(imageWidth: int, aspectRatio: float) -> int:
     return ti.ceil(imageWidth / aspectRatio, int) #Ceiling ensures imageHeight >= 1
 
 @ti.kernel
-def calculateViewportHeight(viewportWidth: float, imageWidth: int, imageHeight: int) -> float: 
+def calculateViewportWidth(viewportHeight: float, imageWidth: int, imageHeight: int) -> float: 
     '''
-    Calcuates viewport height given the viewport width, image width, and image height
+    Calcuates viewport width given the viewport height, image width, and image height
     '''
-    return viewportWidth * (imageHeight / imageWidth)
+    return viewportHeight * (imageWidth / imageHeight)
 
 @ti.kernel
 def calculatePixelDelta(viewportVector: vec3, imageLen: float) -> vec3: #type: ignore 
@@ -41,11 +41,11 @@ class Camera(World):
     '''
     Class for a camera with render capabilities. Add on the world list to the camera for ease of use (Taichi kernels don't accept classes as arguments)
     '''
-    def __init__(self, cameraPos: vec3, imageWidth: int, viewportWidth: float, focalLength: float, aspectRatio: float, tMin: float, tMax: float, samplesPerPixel: int, maxDepth: int): #type: ignore
+    def __init__(self, cameraPos: vec3, imageWidth: int, viewportHeight: float, focalLength: float, aspectRatio: float, tMin: float, tMax: float, samplesPerPixel: int, maxDepth: int): #type: ignore
         super().__init__()
 
         self.imageWidth, self.imageHeight = imageWidth, calculateImageHeight(imageWidth, aspectRatio)
-        self.viewportWidth, self.viewportHeight = viewportWidth, calculateViewportHeight(viewportWidth, self.imageWidth, self.imageHeight)
+        self.viewportWidth, self.viewportHeight = calculateViewportWidth(viewportHeight, self.imageWidth, self.imageHeight), viewportHeight
         self.cameraPos, self.tInterval, self.samplesPerPixel, self.maxDepth = cameraPos, Interval(tMin, tMax), samplesPerPixel, maxDepth
         
         viewportWidthVector, viewportHeightVector = vec3(self.viewportWidth, 0, 0), vec3(0, self.viewportHeight, 0) 
@@ -55,22 +55,25 @@ class Camera(World):
         self.pixelField = ti.Vector.field(3, float, shape = (self.imageWidth, self.imageHeight))
        
     @ti.func 
-    def getRayColor(self, ray):
-        colorReturn = vec3(0, 0, 0)
-        
+    def getRayColor(self, ray): #type: ignore
+        '''
+        Get ray color with support for recursion for bouncing light off of objects. Taichi doesn't support return in if statements so I have to use separate solution. 
+        '''
+
+        colorReturn, colorMultiplier = vec3(0, 0, 0), 1.0
         for _ in range(self.maxDepth):
             didHit, t, normalVector, frontFace = self.hitObjects(self.tInterval, ray)
-            
+    
             if didHit:
-                colorReturn *= 0.5 
-                ray = ray3(ray.pointOnRay(t), randomInNormalDirection(normalVector))
+                colorMultiplier /= 2
+                ray = ray3(ray.pointOnRay(t), normalVector + randomVectorOnUnitSphere())
             else:
                 rayDirY = getY(tm.normalize(ray.direction))
                 a = 0.5 * (rayDirY + 1)
                 colorReturn = (1 - a) * vec3(1, 1, 1) + a * vec3(0.5, 0.7, 1.0)
                 break
         
-        return colorReturn
+        return colorMultiplier * colorReturn
     
     @ti.func 
     def samplePixel(self):
@@ -89,6 +92,13 @@ class Camera(World):
         return ray3(self.cameraPos, rayDir)
     
     @ti.func 
+    def linearToGamma(self, pixel):
+        '''
+        Do gamma correction on the pixel
+        '''
+        return tm.sqrt(pixel)
+
+    @ti.func 
     def antialiasing(self, i, j):
         '''
         Implmement basic antialiasing for pixels
@@ -96,7 +106,7 @@ class Camera(World):
         pixelColor = vec3(0, 0, 0)
         for _ in ti.static(range(self.samplesPerPixel)):
             pixelColor += self.getRayColor(self.constructRay(i, j))
-        return pixelColor / self.samplesPerPixel
+        return self.linearToGamma(pixelColor / self.samplesPerPixel)
 
     @ti.kernel
     def render(self): 

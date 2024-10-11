@@ -2,7 +2,7 @@ import taichi as ti
 import taichi.math as tm 
 import random as rand
 
-ti.init(ti.gpu, random_seed = rand.randint(0, 10000))
+ti.init(ti.gpu, offline_cache = True, random_seed = rand.randint(0, 10000))
 vec3 = tm.vec3
 
 @ti.func 
@@ -61,7 +61,7 @@ def randomVectorOnUnitSphere(rSquared = 1.0):
 @ti.func 
 def randomInNormalDirection(normalVector):
     unitRayDir = randomVectorOnUnitSphere()
-    if tm.dot(unitRayDir, normalVector) < 0: 
+    if tm.dot(unitRayDir, normalVector) < 0.0: 
         unitRayDir *= -1.0 
     return unitRayDir
 
