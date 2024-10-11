@@ -53,6 +53,9 @@ def chooseX(rSquared):
 
 @ti.func 
 def randomVectorOnUnitSphere(rSquared = 1.0):
+    '''
+    Create a random vector on the unit sphere for Lambertian reflfection
+    '''
     z, rSquared = getRandomValueWithR(rSquared)
     y, rSquared = getRandomValueWithR(rSquared)
     x = chooseX(rSquared)
@@ -60,6 +63,9 @@ def randomVectorOnUnitSphere(rSquared = 1.0):
 
 @ti.func 
 def randomInNormalDirection(normalVector):
+    '''
+    Make sure the unit vector is in the direction of the normal Vector for regular scattering
+    '''
     unitRayDir = randomVectorOnUnitSphere()
     if tm.dot(unitRayDir, normalVector) < 0.0: 
         unitRayDir *= -1.0 

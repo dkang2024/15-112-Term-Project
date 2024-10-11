@@ -1,4 +1,5 @@
 from Objects import * 
+import copy
 
 @ti.data_oriented 
 class World: 
@@ -15,15 +16,16 @@ class World:
         self.hittable.append(hittableObject)
 
     @ti.func
-    def hitObjects(self, intervalT, ray):
+    def hitObjects(self, tInterval, ray, rayHitRecord):
         '''
         Iterate through the hittable objects list and check the smallest t that it intersects with to get the closest possible object
         '''
-        hitAnything, t, normalVector, frontFace = False, intervalT.max, vec3(0, 0, 0), False
+        hitAnything = False
         for i in ti.static(range(len(self.hittable))):
-            objectHit, objectT, objectNormal, objectFrontFace = self.hittable[i].hit(intervalT, ray)
-            if objectHit and objectT < t: 
-                hitAnything, t, normalVector, frontFace = objectHit, objectT, objectNormal, objectFrontFace
+            objectHit, tempHitRecord = self.hittable[i].hit(tInterval, ray, initDefaultHitRecord(tInterval.max))
+            if objectHit and tempHitRecord.t < rayHitRecord.t: 
+                hitAnything = objectHit 
+                rayHitRecord = copyHitRecord(tempHitRecord)
 
-        return hitAnything, t, normalVector, frontFace
+        return hitAnything, rayHitRecord
     

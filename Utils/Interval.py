@@ -1,7 +1,7 @@
 from Vectors import * 
 
 @ti.data_oriented 
-class Interval: 
+class interval: 
     '''
     Interval class to make dealing with intervals a lot easier 
     ''' 

@@ -3,6 +3,7 @@ from Rays import *
 from Objects import *
 from World import *
 from Interval import *
+from Hittable import * 
 
 import warnings
 warnings.filterwarnings("ignore") #Taichi throws warnings because classes are used in ti.kernel. We want to ignore these warnings (the classes are specifically designed to allow taichi to work)
@@ -46,7 +47,7 @@ class Camera(World):
 
         self.imageWidth, self.imageHeight = imageWidth, calculateImageHeight(imageWidth, aspectRatio)
         self.viewportWidth, self.viewportHeight = calculateViewportWidth(viewportHeight, self.imageWidth, self.imageHeight), viewportHeight
-        self.cameraPos, self.tInterval, self.samplesPerPixel, self.maxDepth = cameraPos, Interval(tMin, tMax), samplesPerPixel, maxDepth
+        self.cameraPos, self.tInterval, self.samplesPerPixel, self.maxDepth = cameraPos, interval(tMin, tMax), samplesPerPixel, maxDepth
         
         viewportWidthVector, viewportHeightVector = vec3(self.viewportWidth, 0, 0), vec3(0, self.viewportHeight, 0) 
         self.pixelDX, self.pixelDY = calculatePixelDelta(viewportWidthVector, self.imageWidth), calculatePixelDelta(viewportHeightVector, self.imageHeight) 
@@ -62,11 +63,11 @@ class Camera(World):
 
         colorReturn, colorMultiplier = vec3(0, 0, 0), 1.0
         for _ in range(self.maxDepth):
-            didHit, t, normalVector, frontFace = self.hitObjects(self.tInterval, ray)
+            didHit, rayHitRecord = self.hitObjects(self.tInterval, ray, initDefaultHitRecord(self.tInterval.max))
     
             if didHit:
                 colorMultiplier /= 2
-                ray = ray3(ray.pointOnRay(t), normalVector + randomVectorOnUnitSphere())
+                ray = ray3(rayHitRecord.pointHit, rayHitRecord.normalVector + randomVectorOnUnitSphere())
             else:
                 rayDirY = getY(tm.normalize(ray.direction))
                 a = 0.5 * (rayDirY + 1)

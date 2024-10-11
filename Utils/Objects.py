@@ -1,4 +1,5 @@
 from Vectors import * 
+from Hittable import * 
 
 @ti.func 
 def simplifiedDiscriminant(a, c, h):
@@ -52,7 +53,7 @@ class sphere3():
         self.center, self.radius = center, radius
 
     @ti.func
-    def hit(self, intervalT, ray): 
+    def hit(self, intervalT, ray, tempHitRecord): 
         '''
         Check whether a ray intersects with a sphere and return t = -1.0 if it doesn't
         '''
@@ -60,11 +61,12 @@ class sphere3():
         a, h, c = tm.dot(ray.direction, ray.direction), tm.dot(ray.direction, rayToSphereCenter), tm.dot(rayToSphereCenter, rayToSphereCenter) - self.radius ** 2
         discriminant = simplifiedDiscriminant(a, c, h)
         
-        hitSphere, t, normalVector, frontFace = False, -1.0, vec3(0, 0, 0), False
+        hitSphere = False 
         if discriminant >= 0:
-            hitSphere, t = checkSphereIntersection(a, h, discriminant, intervalT)
+            hitSphere, tempHitRecord.t = checkSphereIntersection(a, h, discriminant, intervalT)
+            tempHitRecord.pointHit = ray.pointOnRay(tempHitRecord.t)
             if hitSphere:
-                normalVector = findSphereNormalVector(ray, t, self.center)
-                frontFace = isSphereFrontFace(ray, normalVector)
+                tempHitRecord.normalVector = findSphereNormalVector(ray, tempHitRecord.t, self.center)
+                tempHitRecord.frontFace = tempHitRecord.isFrontFace(ray)
 
-        return hitSphere, t, normalVector, frontFace
+        return hitSphere, tempHitRecord
