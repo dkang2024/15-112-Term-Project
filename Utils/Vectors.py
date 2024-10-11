@@ -61,16 +61,6 @@ def randomVectorOnUnitSphere(rSquared = 1.0):
     x = chooseX(rSquared)
     return vec3(x, y, z)
 
-@ti.func 
-def randomInNormalDirection(normalVector):
-    '''
-    Make sure the unit vector is in the direction of the normal Vector for regular scattering
-    '''
-    unitRayDir = randomVectorOnUnitSphere()
-    if tm.dot(unitRayDir, normalVector) < 0.0: 
-        unitRayDir *= -1.0 
-    return unitRayDir
-
 @ti.kernel 
 def magnitude(v: vec3) -> float: #type: ignore 
     return tm.dot(v, v) ** 0.5
