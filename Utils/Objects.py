@@ -23,14 +23,14 @@ def findSphereNormalVector(ray, t, center):
     return tm.normalize(ray.pointOnRay(t) - center)
 
 @ti.func 
-def checkSphereIntersection(a, h, discriminant, intervalT):
+def checkSphereIntersection(a, h, discriminant, tInterval):
     '''
     Check whether the ray-sphere intersection occurs within the range of tMin and tMax. Unfortunately cannot do this with a loop because Taichi disallows looping over anything else than its own values (so can't use a tuple to vary the sign and then use break).
     '''
     t = simplifiedQuadFormula(a, h, discriminant, -1.0)
-    if not intervalT.surrounds(t):
+    if not tInterval.surrounds(t):
         t = simplifiedQuadFormula(a, h, discriminant, 1.0)
-        if intervalT.surrounds(t):
+        if not tInterval.surrounds(t):
             t = -1.0
     return t >= 0, t
 
