@@ -64,3 +64,11 @@ def randomVectorOnUnitSphere(rSquared = 1.0):
 @ti.kernel 
 def magnitude(v: vec3) -> float: #type: ignore 
     return tm.dot(v, v) ** 0.5
+
+@ti.func 
+def nearZero(v):
+    '''
+    Checks whether all elements of the vector are near zero
+    '''
+    epsilon = 1e-5
+    return getX(v) < epsilon and getY(v) < epsilon and getZ(v) < epsilon

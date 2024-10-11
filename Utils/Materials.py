@@ -5,5 +5,5 @@ from Hittable import *
 class lambertianMaterial:
 
     @ti.func 
-    def scatter(ray, hitRecord, color):
+    def scatter(ray, hitRecord, attenuation):
         return False 
