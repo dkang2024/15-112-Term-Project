@@ -17,6 +17,10 @@ def copyHitRecord(record):
 
 @ti.dataclass 
 class hitRecord: 
+    '''
+    Records important values with ray hits for recording and storing data efficiently (without having a ton of parameters and return values)
+    '''
+
     pointHit: vec3 #type: ignore 
     normalVector: vec3 #type: ignore
     tInterval: interval #type: ignore
