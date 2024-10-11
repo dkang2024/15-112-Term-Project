@@ -63,7 +63,7 @@ class Camera(World):
 
         colorReturn, colorMultiplier = vec3(0, 0, 0), 1.0
         for _ in range(self.maxDepth):
-            didHit, rayHitRecord = self.hitObjects(self.tInterval, ray, initDefaultHitRecord(self.tInterval.max))
+            didHit, rayHitRecord = self.hitObjects(ray, initDefaultHitRecord(self.tInterval))
     
             if didHit:
                 colorMultiplier /= 2

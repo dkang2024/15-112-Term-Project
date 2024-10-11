@@ -23,16 +23,6 @@ def findSphereNormalVector(ray, t, center):
     return tm.normalize(ray.pointOnRay(t) - center)
 
 @ti.func 
-def isSphereFrontFace(ray, normalVector):
-    '''
-    Check if the ray is inside or outside the sphere using the dot product because my implementation for the normal vector of a sphere always points outwards from the center of the sphere
-    '''
-    isOutsideSphere = True
-    if tm.dot(ray.direction, normalVector) > 0:
-        isOutsideSphere = False
-    return isOutsideSphere    
-
-@ti.func 
 def checkSphereIntersection(a, h, discriminant, intervalT):
     '''
     Check whether the ray-sphere intersection occurs within the range of tMin and tMax. Unfortunately cannot do this with a loop because Taichi disallows looping over anything else than its own values (so can't use a tuple to vary the sign and then use break).
@@ -53,7 +43,7 @@ class sphere3():
         self.center, self.radius = center, radius
 
     @ti.func
-    def hit(self, intervalT, ray, tempHitRecord): 
+    def hit(self, ray, tempHitRecord): 
         '''
         Check whether a ray intersects with a sphere and return t = -1.0 if it doesn't
         '''
@@ -63,10 +53,10 @@ class sphere3():
         
         hitSphere = False 
         if discriminant >= 0:
-            hitSphere, tempHitRecord.t = checkSphereIntersection(a, h, discriminant, intervalT)
-            tempHitRecord.pointHit = ray.pointOnRay(tempHitRecord.t)
+            hitSphere, tempHitRecord.tInterval.maxValue = checkSphereIntersection(a, h, discriminant, tempHitRecord.tInterval)
+            tempHitRecord.pointHit = ray.pointOnRay(tempHitRecord.t())
             if hitSphere:
-                tempHitRecord.normalVector = findSphereNormalVector(ray, tempHitRecord.t, self.center)
+                tempHitRecord.normalVector = findSphereNormalVector(ray, tempHitRecord.t(), self.center)
                 tempHitRecord.frontFace = tempHitRecord.isFrontFace(ray)
-
+        
         return hitSphere, tempHitRecord

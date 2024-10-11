@@ -1,14 +1,13 @@
 from Vectors import * 
 
-@ti.data_oriented 
+@ti.dataclass
 class interval: 
     '''
     Interval class to make dealing with intervals a lot easier 
     ''' 
-
-    def __init__(self, minValue, maxValue):
-        self.min, self.max = minValue, maxValue 
+    minValue: float
+    maxValue: float
     
     @ti.func 
     def surrounds(self, value):
-        return self.min < value and value < self.max 
+        return self.minValue < value and value < self.maxValue
