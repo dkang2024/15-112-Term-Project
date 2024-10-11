@@ -38,11 +38,3 @@ class hitRecord:
         Get the max t value of the interval (which would be the intersection of the ray)
         '''
         return self.tInterval.maxValue
-    
-@ti.kernel 
-def test() -> hitRecord: #type: ignore 
-    return initDefaultHitRecord(1e10)
-
-@ti.kernel 
-def copyTest(record: hitRecord) -> hitRecord: #type: ignore 
-    return copyHitRecord(record)
