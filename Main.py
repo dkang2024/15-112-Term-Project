@@ -1,5 +1,20 @@
 from Utils import *
 
+def cameraKeyMovement(camera, window):
+    if window.is_pressed(ti.ui.LEFT, 'a'):
+        camera.dirX = -1 
+    elif window.is_pressed(ti.ui.RIGHT, 'd'):
+        camera.dirX = 1 
+    else:
+        camera.dirX = 0
+
+    if window.is_pressed(ti.ui.UP, 'w'):
+        camera.dirZ = 1
+    elif window.is_pressed(ti.ui.DOWN, 's'):
+        camera.dirZ = -1
+    else: 
+        camera.dirZ = 0
+
 def renderScene(cameraPos: vec3, imageWidth: int, fov: float, focalLength: float, aspectRatio: float, samplesPerPixel: float, maxDepth: int, tMin = 0.001, tMax = 1e10): #type: ignore
     camera = Camera(cameraPos, imageWidth, fov, focalLength, aspectRatio, tMin, tMax, samplesPerPixel, maxDepth)
 
@@ -13,12 +28,15 @@ def renderScene(cameraPos: vec3, imageWidth: int, fov: float, focalLength: float
     camera.addHittable(sphere3(vec3(-1, 0, -1), 0.5, materialLeft))
     camera.addHittable(sphere3(vec3(1, 0, -1), 0.5, materialRight))
 
-    gui = ti.ui.Window('Render Test', res = (camera.imageWidth, camera.imageHeight))
-    canvas = gui.get_canvas()
+    window = ti.ui.Window('Render Test', res = (camera.imageWidth, camera.imageHeight))
+    canvas = window.get_canvas()
 
-    while gui.running: 
+    while window.running: 
+        cameraKeyMovement(camera, window)
+        camera.keyMovement()
+        print(camera.getInitPixelPos(), camera.initPixelPos[0])
         camera.render()
         canvas.set_image(camera.pixelField)
-        gui.show()
+        window.show()
         
 renderScene(vec3(-2, 2, 1), 2000, 90, vec3(0, 0, -1), 16 / 9, 2, 20)

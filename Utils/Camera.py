@@ -74,19 +74,31 @@ class Camera(World):
     '''
     Class for a camera with render capabilities. Add on the world list to the camera for ease of use (Taichi kernels don't accept classes as arguments)
     '''
-    def __init__(self, cameraPos: vec3, imageWidth: int, fov: float, lookAt: vec3, aspectRatio: float, tMin: float, tMax: float, samplesPerPixel: int, maxDepth: int, vectorUp = vec3(0, 1, 0)): #type: ignore
+    def __init__(self, cameraPos: vec3, imageWidth: int, fov: float, lookAt: vec3, aspectRatio: float, tMin: float, tMax: float, samplesPerPixel: int, maxDepth: int, vectorUp = vec3(0, 1, 0), cameraSpeed = 2): #type: ignore
         super().__init__()
+        self.cameraSpeed, self.fov, self.cameraPos, self.lookAt = cameraSpeed, fov, cameraPos, lookAt
+        self.dirX, self.dirY, self.dirZ = 0, 0, 0
         self.imageWidth, self.imageHeight = imageWidth, calculateImageHeight(imageWidth, aspectRatio)
         self.tInterval, self.samplesPerPixel, self.maxDepth = interval(tMin, tMax), samplesPerPixel, maxDepth
         self.pixelField = ti.Vector.field(3, float, shape = (self.imageWidth, self.imageHeight))
 
-        self.setCamera(cameraPos, lookAt, fov, vectorUp)
+        self.setCamera(vectorUp)
 
-    def setCamera(self, cameraPos, lookAt, fov, vectorUp = vec3(0, 1, 0)):
+    def keyMovement(self):
         '''
-        Set the camera to have these values
+        Perform movement of camera after pressing some of the keys
         '''
-        self.cameraPos, self.lookAt, self.fov = cameraPos, lookAt, fov
+        deltaX, deltaY, deltaZ = self.cameraSpeed * self.dirX * self.i, self.cameraSpeed * self.dirY * self.j, self.cameraSpeed * self.dirZ * self.k
+        self.cameraPos += deltaX 
+        self.cameraPos += deltaY 
+        self.cameraPos += deltaZ
+
+        self.setCamera()
+
+    def setCamera(self, vectorUp = vec3(0, 1, 0)):
+        '''
+        Reset the camera's specific values that depend upon its position and what it's looking at
+        '''
         self.focalLength = magnitude(self.cameraPos - self.lookAt)
         
         self.k = calculateCameraK(self.cameraPos, self.lookAt)
@@ -163,4 +175,8 @@ class Camera(World):
         '''
         for i, j in self.pixelField:
             self.pixelField[i, j] = self.antialiasing(i, j)
+    
+    @ti.kernel 
+    def getInitPixelPos(self) -> float: #type: ignore
+        return self.initPixelPos[0]
         
