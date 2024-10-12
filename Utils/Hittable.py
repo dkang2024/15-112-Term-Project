@@ -14,14 +14,14 @@ def initDefaultHitRecord(tInterval):
     '''
     Initializes the default state of a hit record with maximal ray distance
     '''
-    return hitRecord(defaultVec(), defaultVec(), defaultVec(), defaultRay(), defaultVec(), tInterval, True)
+    return hitRecord(defaultVec(), defaultVec(), True, defaultVec(), defaultRay(), defaultVec(), tInterval, True)
 
 @ti.func 
 def copyHitRecord(record):
     '''
     Copies over the values of a hitRecord
     '''
-    return hitRecord(record.pointHit, record.initRayDir, record.rayColor, record.rayScatter, record.normalVector, record.tInterval, record.frontFace)
+    return hitRecord(record.pointHit, record.initRayDir, record.didRayScatter, record.rayColor, record.rayScatter, record.normalVector, record.tInterval, record.frontFace)
 
 @ti.dataclass 
 class hitRecord: 
@@ -31,6 +31,7 @@ class hitRecord:
 
     pointHit: vec3 #type: ignore 
     initRayDir: vec3 #type: ignore
+    didRayScatter: bool #type: ignore
     rayColor: vec3 #type: ignore
     rayScatter: ray3 #type: ignore
     normalVector: vec3 #type: ignore

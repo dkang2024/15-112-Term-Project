@@ -1,13 +1,6 @@
 from Rays import *
 from Hittable import *
 
-@ti.func 
-def defaultMaterial():
-    '''
-    Initialize the default material 
-    '''
-    return lambertianMaterial(1.0, 1.0)
-
 @ti.dataclass 
 class lambertianMaterial:
     '''
@@ -25,7 +18,7 @@ class lambertianMaterial:
         if nearZero(scatteredRay.direction): #Deal with the possibility of returning a 0 direction vector scattering
             scatteredRay.direction = rayHitRecord.normalVector
 
-        return scatteredRay, self.color
+        return True, scatteredRay, self.color
     
 @ti.dataclass 
 class reflectiveMaterial:
@@ -40,4 +33,4 @@ class reflectiveMaterial:
         Scatter rays with a reflective material
         '''
         scatteredRay = ray3(rayHitRecord.pointHit, reflect(rayHitRecord.initRayDir, rayHitRecord.normalVector))
-        return scatteredRay, self.color
+        return True, scatteredRay, self.color

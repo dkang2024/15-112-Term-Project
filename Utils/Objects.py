@@ -60,6 +60,6 @@ class sphere3():
                 tempHitRecord.initRayDir = ray.direction
                 tempHitRecord.normalVector = findSphereNormalVector(ray, tempHitRecord.t(), self.center)
                 tempHitRecord.frontFace = tempHitRecord.isFrontFace(ray)
-                tempHitRecord.rayScatter, tempHitRecord.rayColor = self.material.scatter(tempHitRecord)
+                tempHitRecord.didRayScatter, tempHitRecord.rayScatter, tempHitRecord.rayColor = self.material.scatter(tempHitRecord)
         
         return hitSphere, tempHitRecord
