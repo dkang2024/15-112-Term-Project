@@ -76,25 +76,30 @@ class Camera(World):
     '''
     def __init__(self, cameraPos: vec3, imageWidth: int, fov: float, lookAt: vec3, aspectRatio: float, tMin: float, tMax: float, samplesPerPixel: int, maxDepth: int, vectorUp = vec3(0, 1, 0)): #type: ignore
         super().__init__()
+        self.imageWidth, self.imageHeight = imageWidth, calculateImageHeight(imageWidth, aspectRatio)
+        self.tInterval, self.samplesPerPixel, self.maxDepth = interval(tMin, tMax), samplesPerPixel, maxDepth
+        self.pixelField = ti.Vector.field(3, float, shape = (self.imageWidth, self.imageHeight))
 
-        self.cameraPos, self.lookAt = cameraPos, lookAt
+        self.setCamera(cameraPos, lookAt, fov, vectorUp)
+
+    def setCamera(self, cameraPos, lookAt, fov, vectorUp = vec3(0, 1, 0)):
+        '''
+        Set the camera to have these values
+        '''
+        self.cameraPos, self.lookAt, self.fov = cameraPos, lookAt, fov
         self.focalLength = magnitude(self.cameraPos - self.lookAt)
-
+        
         self.k = calculateCameraK(self.cameraPos, self.lookAt)
         self.i = calculateCameraI(vectorUp, self.k)
         self.j = calculateCameraJ(self.i, self.k)
 
-        self.imageWidth, self.imageHeight = imageWidth, calculateImageHeight(imageWidth, aspectRatio)
-        self.viewportHeight = calculateViewportHeight(fov, self.focalLength)
+        self.viewportHeight = calculateViewportHeight(self.fov, self.focalLength)
         self.viewportWidth = calculateViewportWidth(self.viewportHeight, self.imageWidth, self.imageHeight)
-        self.tInterval, self.samplesPerPixel, self.maxDepth = interval(tMin, tMax), samplesPerPixel, maxDepth
         
         viewportWidthVector, viewportHeightVector = self.viewportWidth * self.i, self.viewportHeight * self.j
         self.pixelDX, self.pixelDY = calculatePixelDelta(viewportWidthVector, self.imageWidth), calculatePixelDelta(viewportHeightVector, self.imageHeight) 
         self.initPixelPos = calculateFirstPixelPos(self.cameraPos, viewportWidthVector, viewportHeightVector, self.pixelDX, self.pixelDY, self.focalLength, self.k)
 
-        self.pixelField = ti.Vector.field(3, float, shape = (self.imageWidth, self.imageHeight))
-       
     @ti.func 
     def getRayColor(self, ray): 
         '''
