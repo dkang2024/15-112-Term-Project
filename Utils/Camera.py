@@ -22,6 +22,14 @@ def calculateViewportWidth(viewportHeight: float, imageWidth: int, imageHeight: 
     '''
     return viewportHeight * (imageWidth / imageHeight)
 
+@ti.kernel 
+def calculateViewportHeight(fov: float, focalLength: float) -> float: 
+    '''
+    Calculates the viewport height given the camera's vertical FOV and focal length 
+    '''
+    tanTheta = ti.tan(tm.radians(fov) / 2)
+    return ti.abs(2 * tanTheta * focalLength) 
+
 @ti.kernel
 def calculatePixelDelta(viewportVector: vec3, imageLen: float) -> vec3: #type: ignore 
     '''
@@ -42,11 +50,12 @@ class Camera(World):
     '''
     Class for a camera with render capabilities. Add on the world list to the camera for ease of use (Taichi kernels don't accept classes as arguments)
     '''
-    def __init__(self, cameraPos: vec3, imageWidth: int, viewportHeight: float, focalLength: float, aspectRatio: float, tMin: float, tMax: float, samplesPerPixel: int, maxDepth: int): #type: ignore
+    def __init__(self, cameraPos: vec3, imageWidth: int, fov: float, focalLength: float, aspectRatio: float, tMin: float, tMax: float, samplesPerPixel: int, maxDepth: int): #type: ignore
         super().__init__()
 
         self.imageWidth, self.imageHeight = imageWidth, calculateImageHeight(imageWidth, aspectRatio)
-        self.viewportWidth, self.viewportHeight = calculateViewportWidth(viewportHeight, self.imageWidth, self.imageHeight), viewportHeight
+        self.viewportHeight = calculateViewportHeight(fov, focalLength)
+        self.viewportWidth = calculateViewportWidth(self.viewportHeight, self.imageWidth, self.imageHeight)
         self.cameraPos, self.tInterval, self.samplesPerPixel, self.maxDepth = cameraPos, interval(tMin, tMax), samplesPerPixel, maxDepth
         
         viewportWidthVector, viewportHeightVector = vec3(self.viewportWidth, 0, 0), vec3(0, self.viewportHeight, 0) 

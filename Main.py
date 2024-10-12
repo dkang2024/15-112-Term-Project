@@ -1,7 +1,7 @@
 from Utils import *
 
-def renderScene(cameraPos: vec3, imageWidth: int, viewportHeight: float, focalLength: float, aspectRatio: float, samplesPerPixel: float, maxDepth: int, tMin = 0.001, tMax = 1e10): #type: ignore
-    camera = Camera(cameraPos, imageWidth, viewportHeight, focalLength, aspectRatio, tMin, tMax, samplesPerPixel, maxDepth)
+def renderScene(cameraPos: vec3, imageWidth: int, fov: float, focalLength: float, aspectRatio: float, samplesPerPixel: float, maxDepth: int, tMin = 0.001, tMax = 1e10): #type: ignore
+    camera = Camera(cameraPos, imageWidth, fov, focalLength, aspectRatio, tMin, tMax, samplesPerPixel, maxDepth)
 
     materialGround = lambertianMaterial(vec3(0.8, 0.8, 0.0))
     materialCenter = lambertianMaterial(vec3(0.1, 0.2, 0.5))
@@ -21,4 +21,4 @@ def renderScene(cameraPos: vec3, imageWidth: int, viewportHeight: float, focalLe
         canvas.set_image(camera.pixelField)
         gui.show()
         
-renderScene(vec3(0, 0, 0), 2000, 2, 1, 16 / 9, 2, 20)
+renderScene(vec3(0, 0, 0), 2000, 45, 1, 16 / 9, 2, 20)
