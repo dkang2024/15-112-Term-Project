@@ -66,8 +66,8 @@ class Camera(World):
             didHit, rayHitRecord = self.hitObjects(ray, initDefaultHitRecord(self.tInterval))
     
             if didHit:
-                ray, materialColor = rayHitRecord.rayScatter, rayHitRecord.rayColor
-                throughput *= materialColor
+                ray = rayHitRecord.rayScatter
+                throughput *= rayHitRecord.rayColor
             else:
                 rayDirY = getY(tm.normalize(ray.direction))
                 a = 0.5 * (rayDirY + 1)
