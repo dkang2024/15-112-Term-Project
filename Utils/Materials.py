@@ -26,3 +26,18 @@ class lambertianMaterial:
             scatteredRay.direction = rayHitRecord.normalVector
 
         return scatteredRay, self.color
+    
+@ti.dataclass 
+class reflectiveMaterial:
+    '''
+    Class for materials that include reflections
+    '''
+    color: vec3 #type: ignore 
+
+    @ti.func 
+    def scatter(self, rayHitRecord):
+        '''
+        Scatter rays with a reflective material
+        '''
+        scatteredRay = ray3(rayHitRecord.pointHit, reflect(rayHitRecord.initRayDir, rayHitRecord.normalVector))
+        return scatteredRay, self.color

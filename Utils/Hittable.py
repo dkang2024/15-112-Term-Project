@@ -1,19 +1,27 @@
-from Vectors import * 
+from Rays import *
 from Interval import *
+
+@ti.func
+def defaultVec():
+    return vec3(0, 0, 0)
+
+@ti.func 
+def defaultRay():
+    return ray3(defaultVec(), defaultVec())
 
 @ti.func
 def initDefaultHitRecord(tInterval):
     '''
     Initializes the default state of a hit record with maximal ray distance
     '''
-    return hitRecord(vec3(0, 0, 0), vec3(0, 0, 0), tInterval, True)
+    return hitRecord(defaultVec(), defaultVec(), defaultVec(), defaultRay(), defaultVec(), tInterval, True)
 
 @ti.func 
 def copyHitRecord(record):
     '''
     Copies over the values of a hitRecord
     '''
-    return hitRecord(record.pointHit, record.normalVector, record.tInterval, record.frontFace)
+    return hitRecord(record.pointHit, record.initRayDir, record.rayColor, record.rayScatter, record.normalVector, record.tInterval, record.frontFace)
 
 @ti.dataclass 
 class hitRecord: 
@@ -22,6 +30,9 @@ class hitRecord:
     '''
 
     pointHit: vec3 #type: ignore 
+    initRayDir: vec3 #type: ignore
+    rayColor: vec3 #type: ignore
+    rayScatter: ray3 #type: ignore
     normalVector: vec3 #type: ignore
     tInterval: interval #type: ignore
     frontFace: bool #type: ignore

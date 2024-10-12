@@ -78,4 +78,4 @@ def reflect(v, n):
     '''
     Reflect a vector back according to the normal vector of a surface
     '''
-    pass
+    return v - 2 * tm.dot(v, n) * n

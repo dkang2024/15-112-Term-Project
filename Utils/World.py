@@ -19,12 +19,12 @@ class World:
         '''
         Iterate through the hittable objects list and check the smallest t that it intersects with to get the closest possible object
         '''
-        hitAnything, finalMaterial = False, defaultMaterial() #Set defaults for these variables
+        hitAnything = False #Set defaults for these variables
         for i in ti.static(range(len(self.hittable))):
-            objectHit, tempHitRecord, material = self.hittable[i].hit(ray, initDefaultHitRecord(rayHitRecord.tInterval))
-            if objectHit and tempHitRecord.t() < rayHitRecord.t():
-                hitAnything, finalMaterial = objectHit, material
+            objectHit, tempHitRecord = self.hittable[i].hit(ray, initDefaultHitRecord(rayHitRecord.tInterval))
+            if objectHit:
+                hitAnything = objectHit
                 rayHitRecord = copyHitRecord(tempHitRecord)
 
-        return hitAnything, rayHitRecord, finalMaterial
+        return hitAnything, rayHitRecord
     
