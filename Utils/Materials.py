@@ -13,7 +13,7 @@ class lambertianMaterial:
     '''
     Class for Lambertian materials and dealing with ray scattering for them 
     '''
-    albedo: float 
+    color: vec3 #type: ignore
 
     @ti.func 
     def scatter(self, rayHitRecord):
@@ -25,4 +25,4 @@ class lambertianMaterial:
         if nearZero(scatteredRay.direction): #Deal with the possibility of returning a 0 direction vector scattering
             scatteredRay.direction = rayHitRecord.normalVector
 
-        return scatteredRay, self.albedo
+        return scatteredRay, self.color

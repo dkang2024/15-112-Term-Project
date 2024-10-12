@@ -72,3 +72,10 @@ def nearZero(v):
     '''
     epsilon = 1e-5
     return getX(v) < epsilon and getY(v) < epsilon and getZ(v) < epsilon
+
+@ti.func 
+def reflect(v, n):
+    '''
+    Reflect a vector back according to the normal vector of a surface
+    '''
+    pass
