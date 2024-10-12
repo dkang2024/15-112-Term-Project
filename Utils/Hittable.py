@@ -41,12 +41,12 @@ class hitRecord:
     @ti.func
     def isFrontFace(self, ray):
         '''
-        Check if the ray is inside or outside the object using the dot product because my implementation for the normal vector always points outwards from the object
+        Check if the ray is front face or not using the dot product because my implementation for the normal vector always points against the ray. ALso resets the normal vector to point against the ray if the normal vector points with the ray
         '''
-        isOutsideObject = True
-        if tm.dot(ray.direction, self.normalVector) > 0:
-            isOutsideObject = False
-        return isOutsideObject
+        frontFace = tm.dot(ray.direction, self.normalVector) < 0
+        if not frontFace:
+            self.normalVector = -self.normalVector
+        return frontFace
 
     @ti.func 
     def t(self):

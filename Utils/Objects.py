@@ -17,11 +17,11 @@ def simplifiedQuadFormula(a, h, discriminant, sign):
     return (h + sign * discriminant ** 0.5) / a 
 
 @ti.func 
-def findSphereNormalVector(ray, t, center):
+def findSphereNormalVector(ray, t, center, radius):
     '''
-    Find the sphere's normal vector
+    Find the sphere's normal vector (not always made to point outwards [this will be done in the hit record])
     '''
-    return tm.normalize(ray.pointOnRay(t) - center)
+    return (ray.pointOnRay(t) - center) / radius 
 
 @ti.func 
 def checkSphereIntersection(a, h, discriminant, tInterval):
@@ -58,7 +58,7 @@ class sphere3():
             if hitSphere:
                 tempHitRecord.pointHit = ray.pointOnRay(tempHitRecord.t())
                 tempHitRecord.initRayDir = ray.direction
-                tempHitRecord.normalVector = findSphereNormalVector(ray, tempHitRecord.t(), self.center)
+                tempHitRecord.normalVector = findSphereNormalVector(ray, tempHitRecord.t(), self.center, self.radius)
                 tempHitRecord.frontFace = tempHitRecord.isFrontFace(ray)
                 tempHitRecord.didRayScatter, tempHitRecord.rayScatter, tempHitRecord.rayColor = self.material.scatter(tempHitRecord)
         
