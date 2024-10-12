@@ -26,11 +26,14 @@ class reflectiveMaterial:
     Class for materials that include reflections
     '''
     color: vec3 #type: ignore 
+    fuzz: float #type: ignore
 
     @ti.func 
     def scatter(self, rayHitRecord):
         '''
         Scatter rays with a reflective material
         '''
-        scatteredRay = ray3(rayHitRecord.pointHit, reflect(rayHitRecord.initRayDir, rayHitRecord.normalVector))
-        return True, scatteredRay, self.color
+        reflectDir = reflect(rayHitRecord.initRayDir, rayHitRecord.normalVector)
+        reflectDir = tm.normalize(reflectDir) + self.fuzz * randomVectorOnUnitSphere()
+        scatteredRay = ray3(rayHitRecord.pointHit, reflectDir)
+        return tm.dot(reflectDir, rayHitRecord.normalVector) > 0, scatteredRay, self.color
