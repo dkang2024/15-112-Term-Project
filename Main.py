@@ -10,8 +10,8 @@ def renderScene(cameraPos: vec3, imageWidth: int, viewportHeight: float, focalLe
 
     camera.addHittable(sphere3(vec3(0, 0, -1), 0.5, materialCenter))
     camera.addHittable(sphere3(vec3(0, -100.5, -1), 100, materialGround))
-    # camera.addHittable(sphere3(vec3(-1, 0, -1), 0.5, materialLeft))
-    # camera.addHittable(sphere3(vec3(1, 0, -1), 0.5, materialRight))
+    camera.addHittable(sphere3(vec3(-1, 0, -1), 0.5, materialLeft))
+    camera.addHittable(sphere3(vec3(1, 0, -1), 0.5, materialRight))
 
     gui = ti.ui.Window('Render Test', res = (camera.imageWidth, camera.imageHeight))
     canvas = gui.get_canvas()
