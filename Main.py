@@ -21,4 +21,4 @@ def renderScene(cameraPos: vec3, imageWidth: int, fov: float, focalLength: float
         canvas.set_image(camera.pixelField)
         gui.show()
         
-renderScene(vec3(0, 0, 0), 2000, 45, 1, 16 / 9, 2, 20)
+renderScene(vec3(0, 0, 0), 2000, 90, vec3(0, 0, -1), 16 / 9, 2, 20)

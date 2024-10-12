@@ -50,17 +50,19 @@ class Camera(World):
     '''
     Class for a camera with render capabilities. Add on the world list to the camera for ease of use (Taichi kernels don't accept classes as arguments)
     '''
-    def __init__(self, cameraPos: vec3, imageWidth: int, fov: float, focalLength: float, aspectRatio: float, tMin: float, tMax: float, samplesPerPixel: int, maxDepth: int): #type: ignore
+    def __init__(self, cameraPos: vec3, imageWidth: int, fov: float, lookAt: vec3, aspectRatio: float, tMin: float, tMax: float, samplesPerPixel: int, maxDepth: int): #type: ignore
         super().__init__()
 
+        self.cameraPos = cameraPos
+        self.focalLength = magnitude(self.cameraPos - lookAt)
         self.imageWidth, self.imageHeight = imageWidth, calculateImageHeight(imageWidth, aspectRatio)
-        self.viewportHeight = calculateViewportHeight(fov, focalLength)
+        self.viewportHeight = calculateViewportHeight(fov, self.focalLength)
         self.viewportWidth = calculateViewportWidth(self.viewportHeight, self.imageWidth, self.imageHeight)
-        self.cameraPos, self.tInterval, self.samplesPerPixel, self.maxDepth = cameraPos, interval(tMin, tMax), samplesPerPixel, maxDepth
+        self.tInterval, self.samplesPerPixel, self.maxDepth = interval(tMin, tMax), samplesPerPixel, maxDepth
         
         viewportWidthVector, viewportHeightVector = vec3(self.viewportWidth, 0, 0), vec3(0, self.viewportHeight, 0) 
         self.pixelDX, self.pixelDY = calculatePixelDelta(viewportWidthVector, self.imageWidth), calculatePixelDelta(viewportHeightVector, self.imageHeight) 
-        self.initPixelPos = calculateFirstPixelPos(self.cameraPos, viewportWidthVector, viewportHeightVector, self.pixelDX, self.pixelDY, focalLength)
+        self.initPixelPos = calculateFirstPixelPos(self.cameraPos, viewportWidthVector, viewportHeightVector, self.pixelDX, self.pixelDY, self.focalLength)
 
         self.pixelField = ti.Vector.field(3, float, shape = (self.imageWidth, self.imageHeight))
        
