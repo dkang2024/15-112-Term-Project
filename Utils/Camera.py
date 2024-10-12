@@ -38,31 +38,60 @@ def calculatePixelDelta(viewportVector: vec3, imageLen: float) -> vec3: #type: i
     return viewportVector / imageLen
 
 @ti.kernel
-def calculateFirstPixelPos(cameraPos: vec3, viewportWidthVector: vec3, viewportHeightVector: vec3, pixelDX: vec3, pixelDY: vec3, focalLength: float) -> vec3: #type: ignore
+def calculateFirstPixelPos(cameraPos: vec3, viewportWidthVector: vec3, viewportHeightVector: vec3, pixelDX: vec3, pixelDY: vec3, focalLength: float, k: vec3) -> vec3: #type: ignore
     '''
     Calculates the position of the first pixel on the viewport in terms of the world's coordinate system
     '''
-    viewportBottomLeftPos = cameraPos - vec3(0, 0, focalLength) - (viewportWidthVector + viewportHeightVector) / 2
+    viewportBottomLeftPos = cameraPos - focalLength * k - (viewportWidthVector + viewportHeightVector) / 2
     return viewportBottomLeftPos + (pixelDX + pixelDY) / 2
+
+@ti.kernel 
+def calculateCameraK(cameraPos: vec3, lookAt: vec3) -> vec3: #type: ignore
+    '''
+    Calculate the camera's unit vector in the +z direction
+    '''
+    return tm.normalize(cameraPos - lookAt)
+
+@ti.kernel 
+def calculateCameraI(vectorUp: vec3, k: vec3) -> vec3: #type: ignore 
+    '''
+    Calculate the camera's unit vector in the +x direction
+    '''
+    crossProduct = tm.cross(vectorUp, k)
+    if nearZero(crossProduct):
+        crossProduct = tm.cross(vec3(0, 0, 1), k)
+    return tm.normalize(crossProduct)
+
+@ti.kernel 
+def calculateCameraJ(i: vec3, k: vec3) -> vec3: #type: ignore
+    '''
+    Calculate the camera's unit vector in the +y direction
+    '''
+    return tm.cross(k, i)
 
 @ti.data_oriented 
 class Camera(World): 
     '''
     Class for a camera with render capabilities. Add on the world list to the camera for ease of use (Taichi kernels don't accept classes as arguments)
     '''
-    def __init__(self, cameraPos: vec3, imageWidth: int, fov: float, lookAt: vec3, aspectRatio: float, tMin: float, tMax: float, samplesPerPixel: int, maxDepth: int): #type: ignore
+    def __init__(self, cameraPos: vec3, imageWidth: int, fov: float, lookAt: vec3, aspectRatio: float, tMin: float, tMax: float, samplesPerPixel: int, maxDepth: int, vectorUp = vec3(0, 1, 0)): #type: ignore
         super().__init__()
 
-        self.cameraPos = cameraPos
-        self.focalLength = magnitude(self.cameraPos - lookAt)
+        self.cameraPos, self.lookAt = cameraPos, lookAt
+        self.focalLength = magnitude(self.cameraPos - self.lookAt)
+
+        self.k = calculateCameraK(self.cameraPos, self.lookAt)
+        self.i = calculateCameraI(vectorUp, self.k)
+        self.j = calculateCameraJ(self.i, self.k)
+
         self.imageWidth, self.imageHeight = imageWidth, calculateImageHeight(imageWidth, aspectRatio)
         self.viewportHeight = calculateViewportHeight(fov, self.focalLength)
         self.viewportWidth = calculateViewportWidth(self.viewportHeight, self.imageWidth, self.imageHeight)
         self.tInterval, self.samplesPerPixel, self.maxDepth = interval(tMin, tMax), samplesPerPixel, maxDepth
         
-        viewportWidthVector, viewportHeightVector = vec3(self.viewportWidth, 0, 0), vec3(0, self.viewportHeight, 0) 
+        viewportWidthVector, viewportHeightVector = self.viewportWidth * self.i, self.viewportHeight * self.j
         self.pixelDX, self.pixelDY = calculatePixelDelta(viewportWidthVector, self.imageWidth), calculatePixelDelta(viewportHeightVector, self.imageHeight) 
-        self.initPixelPos = calculateFirstPixelPos(self.cameraPos, viewportWidthVector, viewportHeightVector, self.pixelDX, self.pixelDY, self.focalLength)
+        self.initPixelPos = calculateFirstPixelPos(self.cameraPos, viewportWidthVector, viewportHeightVector, self.pixelDX, self.pixelDY, self.focalLength, self.k)
 
         self.pixelField = ti.Vector.field(3, float, shape = (self.imageWidth, self.imageHeight))
        
