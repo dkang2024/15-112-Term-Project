@@ -5,7 +5,7 @@ def renderScene(cameraPos: vec3, imageWidth: int, viewportHeight: float, focalLe
 
     materialGround = lambertianMaterial(vec3(0.8, 0.8, 0.0))
     materialCenter = lambertianMaterial(vec3(0.1, 0.2, 0.5))
-    materialLeft = dielectricMaterial(1.5)
+    materialLeft = dielectricMaterial(1.0 / 1.3)
     materialRight = reflectiveMaterial(vec3(0.8, 0.6, 0.2), 1.0)
 
     camera.addHittable(sphere3(vec3(0, 0, -1), 0.5, materialCenter))
@@ -21,4 +21,4 @@ def renderScene(cameraPos: vec3, imageWidth: int, viewportHeight: float, focalLe
         canvas.set_image(camera.pixelField)
         gui.show()
         
-renderScene(vec3(0, 0, 0), 2000, 2, 1, 16 / 9, 2, 4)
+renderScene(vec3(0, 0, 0), 2000, 2, 1, 16 / 9, 2, 20)

@@ -81,11 +81,10 @@ def reflect(v, n):
     return v - 2 * tm.dot(v, n) * n
 
 @ti.func 
-def refract(v, n, etaRatio):
+def refract(v, n, etaRatio, cosTheta):
     '''
     Refract a vector through an object
     '''
-    cosTheta = ti.min(tm.dot(-v, n), 1.0)
     rPerp = etaRatio * (v + cosTheta * n)
     rParallel = -ti.sqrt(ti.abs(1.0 - tm.dot(rPerp, rPerp))) * n 
     return rPerp + rParallel
