@@ -47,7 +47,9 @@ class dielectricMaterial:
 
     @ti.func 
     def scatter(self, rayHitRecord):
-        etaRatio = 1.0 / self.refractionIndex     
+        etaRatio = self.refractionIndex
+        if rayHitRecord.frontFace:
+            etaRatio = 1.0 / self.refractionIndex     
         unitDirection = tm.normalize(rayHitRecord.initRayDir)
         refractedDirection = refract(unitDirection, rayHitRecord.normalVector, etaRatio)
         scatteredRay = ray3(rayHitRecord.pointHit, refractedDirection)
