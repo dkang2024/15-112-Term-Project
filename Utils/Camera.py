@@ -61,20 +61,20 @@ class Camera(World):
         Get ray color with support for recursion for bouncing light off of objects. Taichi doesn't support return in if statements so I have to use separate solution. 
         '''
 
-        colorReturn, colorMultiplier = vec3(0, 0, 0), 1.0
+        colorReturn, attenuation = vec3(0, 0, 0), 1.0
         for _ in range(self.maxDepth):
-            didHit, rayHitRecord = self.hitObjects(ray, initDefaultHitRecord(self.tInterval))
+            didHit, rayHitRecord, material = self.hitObjects(ray, initDefaultHitRecord(self.tInterval))
     
             if didHit:
-                colorMultiplier /= 2
-                ray = ray3(rayHitRecord.pointHit, rayHitRecord.normalVector + randomVectorOnUnitSphere())
+                ray, rayScatterAttenuation = material.scatter(rayHitRecord)
+                attenuation *= rayScatterAttenuation
             else:
                 rayDirY = getY(tm.normalize(ray.direction))
                 a = 0.5 * (rayDirY + 1)
                 colorReturn = (1 - a) * vec3(1, 1, 1) + a * vec3(0.5, 0.7, 1.0)
                 break
         
-        return colorMultiplier * colorReturn
+        return attenuation * colorReturn
     
     @ti.func 
     def samplePixel(self):

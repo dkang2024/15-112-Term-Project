@@ -1,4 +1,5 @@
 from Vectors import * 
+from Materials import *
 from Hittable import * 
 
 @ti.func 
@@ -39,8 +40,8 @@ class sphere3():
     '''
     Class for a sphere and its ray intersections
     '''
-    def __init__(self, center, radius):
-        self.center, self.radius = center, radius
+    def __init__(self, center, radius, material):
+        self.center, self.radius, self.material = center, radius, material
 
     @ti.func
     def hit(self, ray, tempHitRecord): 
@@ -59,4 +60,4 @@ class sphere3():
                 tempHitRecord.normalVector = findSphereNormalVector(ray, tempHitRecord.t(), self.center)
                 tempHitRecord.frontFace = tempHitRecord.isFrontFace(ray)
         
-        return hitSphere, tempHitRecord
+        return hitSphere, tempHitRecord, self.material 
