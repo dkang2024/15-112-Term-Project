@@ -32,9 +32,6 @@ def renderScene(cameraPos: vec3, imageWidth: int, fov: float, focalLength: float
     canvas = window.get_canvas()
 
     while window.running: 
-        cameraKeyMovement(camera, window)
-        camera.keyMovement()
-        print(camera.getInitPixelPos(), camera.initPixelPos[0])
         camera.render()
         canvas.set_image(camera.pixelField)
         window.show()

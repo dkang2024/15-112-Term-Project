@@ -15,59 +15,108 @@ def calculateImageHeight(imageWidth: int, aspectRatio: float) -> int:
     '''
     return ti.ceil(imageWidth / aspectRatio, int) #Ceiling ensures imageHeight >= 1
 
-@ti.kernel
-def calculateViewportWidth(viewportHeight: float, imageWidth: int, imageHeight: int) -> float: 
-    '''
-    Calcuates viewport width given the viewport height, image width, and image height
-    '''
-    return viewportHeight * (imageWidth / imageHeight)
-
 @ti.kernel 
-def calculateViewportHeight(fov: float, focalLength: float) -> float: 
+def defaultCamVec() -> vec3: #type: ignore
     '''
-    Calculates the viewport height given the camera's vertical FOV and focal length 
+    Allow default vectors to be created in Python's scope
     '''
-    tanTheta = ti.tan(tm.radians(fov) / 2)
-    return ti.abs(2 * tanTheta * focalLength) 
+    return vec3(0, 0, 0)
 
-@ti.kernel
-def calculatePixelDelta(viewportVector: vec3, imageLen: float) -> vec3: #type: ignore 
+@ti.data_oriented
+class cameraMovement:
     '''
-    Calculates the displacement vector in between pixels on the image in the viewport. Note that this only calculates in one dimension because Taichi kernels can only return one value. 
+    Store the data for camera position and movement in a Taichi field because everything else is immutatable for Taichi
     '''
-    return viewportVector / imageLen
+    def __init__(self, movementField):
+        self.movementField = movementField 
 
-@ti.kernel
-def calculateFirstPixelPos(cameraPos: vec3, viewportWidthVector: vec3, viewportHeightVector: vec3, pixelDX: vec3, pixelDY: vec3, focalLength: float, k: vec3) -> vec3: #type: ignore
-    '''
-    Calculates the position of the first pixel on the viewport in terms of the world's coordinate system
-    '''
-    viewportBottomLeftPos = cameraPos - focalLength * k - (viewportWidthVector + viewportHeightVector) / 2
-    return viewportBottomLeftPos + (pixelDX + pixelDY) / 2
+    @ti.func
+    def cameraPos(self):
+        return self.movementField[0]
 
-@ti.kernel 
-def calculateCameraK(cameraPos: vec3, lookAt: vec3) -> vec3: #type: ignore
+    @ti.func 
+    def lookAt(self):
+        return self.movementField[1]
+    
+@ti.data_oriented
+class cameraUnitVectors: 
     '''
-    Calculate the camera's unit vector in the +z direction
+    Store and manipulate the data for the camera's unit vectors in a Taichi field because everything else is immutatable for Taichi
     '''
-    return tm.normalize(cameraPos - lookAt)
+    def __init__(self, unitVectorField):
+        self.unitVectorField = unitVectorField
 
-@ti.kernel 
-def calculateCameraI(vectorUp: vec3, k: vec3) -> vec3: #type: ignore 
-    '''
-    Calculate the camera's unit vector in the +x direction
-    '''
-    crossProduct = tm.cross(vectorUp, k)
-    if nearZero(crossProduct):
-        crossProduct = tm.cross(vec3(0, 0, 1), k)
-    return tm.normalize(crossProduct)
+    @ti.func 
+    def i(self):
+        return self.unitVectorField[0]
+    
+    @ti.func 
+    def j(self):
+        return self.unitVectorField[1]
+    
+    @ti.func 
+    def k(self):
+        return self.unitVectorField[2]
 
-@ti.kernel 
-def calculateCameraJ(i: vec3, k: vec3) -> vec3: #type: ignore
+    @ti.func
+    def calculateI(self, vectorUp: vec3): #type: ignore 
+        '''
+        Calculate the camera's unit vector in the +x direction
+        '''
+        crossProduct = tm.cross(vectorUp, self.k())
+        if nearZero(crossProduct):
+            crossProduct = tm.cross(vec3(0, 0, 1), self.k())
+        self.unitVectorField[0] = tm.normalize(crossProduct)
+    
+    @ti.func
+    def calculateJ(self): #type: ignore
+        '''
+        Calculate the camera's unit vector in the +y direction
+        '''
+        self.unitVectorField[1] = tm.cross(self.k(), self.i())
+    
+    @ti.func
+    def calculateK(self, movement: ti.template()): #type: ignore
+        '''
+        Calculate the camera's unit vector in the +z direction
+        '''
+        self.unitVectorField[2] = tm.normalize(movement.cameraPos() - movement.lookAt())
+
+@ti.data_oriented
+class cameraRenderValues:
     '''
-    Calculate the camera's unit vector in the +y direction
-    '''
-    return tm.cross(k, i)
+    Store and calculate the camera's important render values
+    '''  
+    def __init__(self, pixelField):
+        self.pixelField = pixelField
+    
+    @ti.func 
+    def pixelDX(self):
+        return self.pixelField[0]
+    
+    @ti.func 
+    def pixelDY(self):
+        return self.pixelField[1]
+    
+    @ti.func 
+    def initPixelPos(self):
+        return self.pixelField[2]
+
+    @ti.func
+    def calculatePixelDelta(self, viewportWidthVector, imageWidth, viewportHeightVector, imageHeight): 
+        '''
+        Calculates the displacement vector in between pixels on the image in the viewport and sets them in the Taichi field.
+        '''
+        self.pixelField[0] = viewportWidthVector / imageWidth 
+        self.pixelField[1] = viewportHeightVector / imageHeight
+
+    @ti.func
+    def calculateFirstPixelPos(self, cameraPos: vec3, viewportWidthVector: vec3, viewportHeightVector: vec3, focalLength: float, k: vec3): #type: ignore
+        '''
+        Calculates the position of the first pixel on the viewport in terms of the world's coordinate system
+        '''
+        viewportBottomLeftPos = cameraPos - focalLength * k - (viewportWidthVector + viewportHeightVector) / 2
+        self.pixelField[2] = viewportBottomLeftPos + (self.pixelDX() + self.pixelDY()) / 2
 
 @ti.data_oriented 
 class Camera(World): 
@@ -76,41 +125,98 @@ class Camera(World):
     '''
     def __init__(self, cameraPos: vec3, imageWidth: int, fov: float, lookAt: vec3, aspectRatio: float, tMin: float, tMax: float, samplesPerPixel: int, maxDepth: int, vectorUp = vec3(0, 1, 0), cameraSpeed = 2): #type: ignore
         super().__init__()
-        self.cameraSpeed, self.fov, self.cameraPos, self.lookAt = cameraSpeed, fov, cameraPos, lookAt
-        self.dirX, self.dirY, self.dirZ = 0, 0, 0
+        self.cameraSpeed, self.fov = cameraSpeed, fov
+        self.createCameraMovement(cameraPos, lookAt)
+        self.createUnitVectors()
+        self.createRenderValues()
+
         self.imageWidth, self.imageHeight = imageWidth, calculateImageHeight(imageWidth, aspectRatio)
         self.tInterval, self.samplesPerPixel, self.maxDepth = interval(tMin, tMax), samplesPerPixel, maxDepth
         self.pixelField = ti.Vector.field(3, float, shape = (self.imageWidth, self.imageHeight))
 
         self.setCamera(vectorUp)
 
-    def keyMovement(self):
+    def createCameraMovement(self, cameraPos: vec3, lookAt: vec3): #type: ignore
         '''
-        Perform movement of camera after pressing some of the keys
+        Create the camera movement dataclass
         '''
-        deltaX, deltaY, deltaZ = self.cameraSpeed * self.dirX * self.i, self.cameraSpeed * self.dirY * self.j, self.cameraSpeed * self.dirZ * self.k
-        self.cameraPos += deltaX 
-        self.cameraPos += deltaY 
-        self.cameraPos += deltaZ
+        movementField = ti.Vector.field(3, float, shape = (2,)) 
+        movementField[0], movementField[1] = cameraPos, lookAt 
+        self.cameraMovement = cameraMovement(movementField)
 
-        self.setCamera()
+    def createUnitVectors(self): 
+        '''
+        Create the unit vector dataclass
+        '''
+        unitVectorField = ti.Vector.field(3, float, shape = (3,))
+        unitVectorField.fill(defaultCamVec())
+        self.cameraUnitVectors = cameraUnitVectors(unitVectorField)
 
-    def setCamera(self, vectorUp = vec3(0, 1, 0)):
+    @ti.kernel 
+    def calculateUnitVectors(self, vectorUp: vec3): #type: ignore 
+        '''
+        Calculate the camera's unit vectors
+        '''
+        self.cameraUnitVectors.calculateK(self.cameraMovement)
+        self.cameraUnitVectors.calculateI(vectorUp)
+        self.cameraUnitVectors.calculateJ()
+
+    def createRenderValues(self):
+        '''
+        Create the render values dataclass
+        '''
+        pixelField = ti.Vector.field(3, float, shape = (3,))
+        pixelField.fill(defaultCamVec())
+        self.cameraRenderValues = cameraRenderValues(pixelField)
+
+    @ti.func
+    def calculateRenderValues(self, viewportWidthVector: vec3, viewportHeightVector: vec3, focalLength: float): #type: ignore
+        '''
+        Calculate specific values for the camera's render values
+        '''
+        self.cameraRenderValues.calculatePixelDelta(viewportWidthVector, self.imageWidth, viewportHeightVector, self.imageHeight)
+        self.cameraRenderValues.calculateFirstPixelPos(self.cameraMovement.cameraPos(), viewportWidthVector, viewportHeightVector, focalLength, self.cameraUnitVectors.k())
+
+    @ti.func 
+    def calculateFocalLength(self):
+        '''
+        Calculate the camera's focal length. 
+        '''
+        cameraPosVector = self.cameraMovement.cameraPos() - self.cameraMovement.lookAt()
+        return tm.dot(cameraPosVector, cameraPosVector) ** 0.5
+    
+    @ti.func
+    def calculateViewportWidth(self, viewportHeight: float) -> float: 
+        '''
+        Calcuate the camera's viewport width
+        '''
+        return viewportHeight * (self.imageWidth / self.imageHeight)
+    
+    @ti.func
+    def calculateViewportHeight(self, focalLength: float) -> float: 
+        '''
+        Calculate the camera's viewport height
+        '''
+        tanTheta = ti.tan(tm.radians(self.fov) / 2)
+        return ti.abs(2 * tanTheta * focalLength) 
+
+    @ti.kernel 
+    def calculateRender(self):
+        '''
+        Calculate the render values necessary for the camera, including the intermediate ones necessary for the calculation.
+        '''
+        focalLength = self.calculateFocalLength()
+        viewportHeight = self.calculateViewportHeight(focalLength)
+        viewportWidth = self.calculateViewportWidth(viewportHeight)
+        viewportWidthVector, viewportHeightVector = viewportWidth * self.cameraUnitVectors.i(), viewportHeight * self.cameraUnitVectors.j()
+        self.calculateRenderValues(viewportWidthVector, viewportHeightVector, focalLength)
+
+    def setCamera(self, vectorUp: vec3): #type: ignore
         '''
         Reset the camera's specific values that depend upon its position and what it's looking at
         '''
-        self.focalLength = magnitude(self.cameraPos - self.lookAt)
-        
-        self.k = calculateCameraK(self.cameraPos, self.lookAt)
-        self.i = calculateCameraI(vectorUp, self.k)
-        self.j = calculateCameraJ(self.i, self.k)
-
-        self.viewportHeight = calculateViewportHeight(self.fov, self.focalLength)
-        self.viewportWidth = calculateViewportWidth(self.viewportHeight, self.imageWidth, self.imageHeight)
-        
-        viewportWidthVector, viewportHeightVector = self.viewportWidth * self.i, self.viewportHeight * self.j
-        self.pixelDX, self.pixelDY = calculatePixelDelta(viewportWidthVector, self.imageWidth), calculatePixelDelta(viewportHeightVector, self.imageHeight) 
-        self.initPixelPos = calculateFirstPixelPos(self.cameraPos, viewportWidthVector, viewportHeightVector, self.pixelDX, self.pixelDY, self.focalLength, self.k)
+        self.calculateUnitVectors(vectorUp)
+        self.calculateRender()
 
     @ti.func 
     def getRayColor(self, ray): 
@@ -148,8 +254,8 @@ class Camera(World):
         Construct the ray from the camera to the viewport
         '''
         pixelOffset = self.samplePixel()
-        rayDir = self.initPixelPos + (i + pixelOffset) * self.pixelDX + (j + pixelOffset) * self.pixelDY - self.cameraPos
-        return ray3(self.cameraPos, rayDir)
+        rayDir = self.cameraRenderValues.initPixelPos() + (i + pixelOffset) * self.cameraRenderValues.pixelDX() + (j + pixelOffset) * self.cameraRenderValues.pixelDY() - self.cameraMovement.cameraPos()
+        return ray3(self.cameraMovement.cameraPos(), rayDir)
     
     @ti.func 
     def linearToGamma(self, pixel):
@@ -175,8 +281,4 @@ class Camera(World):
         '''
         for i, j in self.pixelField:
             self.pixelField[i, j] = self.antialiasing(i, j)
-    
-    @ti.kernel 
-    def getInitPixelPos(self) -> float: #type: ignore
-        return self.initPixelPos[0]
         
