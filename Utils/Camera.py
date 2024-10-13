@@ -19,6 +19,13 @@ def cameraKeyMovement(camera, window):
     else:
         camera.setMovementX(0)
 
+    if window.is_pressed(ti.ui.SPACE) and not window.is_pressed(ti.ui.SHIFT):
+        camera.setMovementY(1)
+    elif window.is_pressed(ti.ui.SPACE) and window.is_pressed(ti.ui.SHIFT):
+        camera.setMovementY(-1)
+    else:
+        camera.setMovementY(0)
+
     if window.is_pressed(ti.ui.UP, 'w'):
         camera.setMovementZ(-1)
     elif window.is_pressed(ti.ui.DOWN, 's'):
@@ -46,7 +53,7 @@ class cameraMovement:
     Store the data for camera position and movement in a Taichi field because everything else is immutatable for Taichi
     '''
     def __init__(self):
-        self.positionField, self.movementField = ti.Vector.field(3, float, shape = (2,)), ti.field(int, shape = (2,))
+        self.positionField, self.movementField = ti.Vector.field(3, float, shape = (2,)), ti.field(int, shape = (3,))
 
     @ti.func
     def cameraPos(self):
@@ -61,18 +68,21 @@ class cameraMovement:
         return self.movementField[0]
     
     @ti.func 
-    def dirZ(self):
+    def dirY(self):
         return self.movementField[1]
+    
+    @ti.func 
+    def dirZ(self):
+        return self.movementField[2]
     
     @ti.func 
     def moveCamera(self, cameraSpeed, unitVectors):
         '''
         Move the camera position / what it's looking at 
         '''
-        deltaX, deltaZ = self.dirX() * cameraSpeed * unitVectors.i(), self.dirZ() * cameraSpeed * unitVectors.k()
+        deltaX, deltaY, deltaZ = self.dirX() * cameraSpeed * unitVectors.i(), self.dirY() * cameraSpeed * unitVectors.j(), self.dirZ() * cameraSpeed * unitVectors.k()
         for i in self.positionField: 
-            self.positionField[i] += deltaX 
-            self.positionField[i] += deltaZ
+            self.positionField[i] += deltaX + deltaY + deltaZ
     
 @ti.data_oriented
 class cameraUnitVectors: 
@@ -159,7 +169,7 @@ class Camera(World):
     '''
     Class for a camera with render capabilities. Add on the world list to the camera for ease of use (Taichi kernels don't accept classes as arguments)
     '''
-    def __init__(self, cameraPos: vec3, imageWidth: int, fov: float, lookAt: vec3, aspectRatio: float, tMin: float, tMax: float, samplesPerPixel: int, maxDepth: int, vectorUp = vec3(0, 1, 0), cameraSpeed = 0.2): #type: ignore
+    def __init__(self, cameraPos: vec3, imageWidth: int, fov: float, lookAt: vec3, aspectRatio: float, tMin: float, tMax: float, samplesPerPixel: int, maxDepth: int, vectorUp = vec3(0, 1, 0), cameraSpeed = 0.1): #type: ignore
         super().__init__()
         self.cameraSpeed, self.fov, self.vectorUp = cameraSpeed, fov, vectorUp
         self.createCameraMovement(cameraPos, lookAt)
@@ -185,8 +195,12 @@ class Camera(World):
         self.cameraMovement.movementField[0] = value 
     
     @ti.kernel 
-    def setMovementZ(self, value: int):
+    def setMovementY(self, value: int):
         self.cameraMovement.movementField[1] = value
+
+    @ti.kernel 
+    def setMovementZ(self, value: int):
+        self.cameraMovement.movementField[2] = value
 
     @ti.kernel 
     def calculateUnitVectors(self): #type: ignore 
