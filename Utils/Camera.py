@@ -8,6 +8,24 @@ from Hittable import *
 import warnings
 warnings.filterwarnings("ignore") #Taichi throws warnings because classes are used in ti.kernel. We want to ignore these warnings (the classes are specifically designed to allow taichi to work)
 
+def cameraKeyMovement(camera, window):
+    '''
+    Allow the camera to be moved using keys
+    '''
+    if window.is_pressed(ti.ui.LEFT, 'a'):
+        camera.setMovementX(-1) 
+    elif window.is_pressed(ti.ui.RIGHT, 'd'):
+        camera.setMovementX(1) 
+    else:
+        camera.setMovementX(0)
+
+    if window.is_pressed(ti.ui.UP, 'w'):
+        camera.setMovementZ(-1)
+    elif window.is_pressed(ti.ui.DOWN, 's'):
+        camera.setMovementZ(1)
+    else: 
+        camera.setMovementZ(0)
+
 @ti.kernel
 def calculateImageHeight(imageWidth: int, aspectRatio: float) -> int:
     '''
@@ -27,24 +45,42 @@ class cameraMovement:
     '''
     Store the data for camera position and movement in a Taichi field because everything else is immutatable for Taichi
     '''
-    def __init__(self, movementField):
-        self.movementField = movementField 
+    def __init__(self):
+        self.positionField, self.movementField = ti.Vector.field(3, float, shape = (2,)), ti.field(int, shape = (2,))
 
     @ti.func
     def cameraPos(self):
-        return self.movementField[0]
+        return self.positionField[0]
 
     @ti.func 
     def lookAt(self):
+        return self.positionField[1]
+    
+    @ti.func 
+    def dirX(self):
+        return self.movementField[0]
+    
+    @ti.func 
+    def dirZ(self):
         return self.movementField[1]
+    
+    @ti.func 
+    def moveCamera(self, cameraSpeed, unitVectors):
+        '''
+        Move the camera position / what it's looking at 
+        '''
+        deltaX, deltaZ = self.dirX() * cameraSpeed * unitVectors.i(), self.dirZ() * cameraSpeed * unitVectors.k()
+        for i in self.positionField: 
+            self.positionField[i] += deltaX 
+            self.positionField[i] += deltaZ
     
 @ti.data_oriented
 class cameraUnitVectors: 
     '''
     Store and manipulate the data for the camera's unit vectors in a Taichi field because everything else is immutatable for Taichi
     '''
-    def __init__(self, unitVectorField):
-        self.unitVectorField = unitVectorField
+    def __init__(self):
+        self.unitVectorField = ti.Vector.field(3, float, shape = (3,))
 
     @ti.func 
     def i(self):
@@ -59,7 +95,7 @@ class cameraUnitVectors:
         return self.unitVectorField[2]
 
     @ti.func
-    def calculateI(self, vectorUp: vec3): #type: ignore 
+    def calculateI(self, vectorUp): #type: ignore 
         '''
         Calculate the camera's unit vector in the +x direction
         '''
@@ -87,8 +123,8 @@ class cameraRenderValues:
     '''
     Store and calculate the camera's important render values
     '''  
-    def __init__(self, pixelField):
-        self.pixelField = pixelField
+    def __init__(self):
+        self.pixelField = ti.Vector.field(3, float, shape = (3,))
     
     @ti.func 
     def pixelDX(self):
@@ -123,51 +159,43 @@ class Camera(World):
     '''
     Class for a camera with render capabilities. Add on the world list to the camera for ease of use (Taichi kernels don't accept classes as arguments)
     '''
-    def __init__(self, cameraPos: vec3, imageWidth: int, fov: float, lookAt: vec3, aspectRatio: float, tMin: float, tMax: float, samplesPerPixel: int, maxDepth: int, vectorUp = vec3(0, 1, 0), cameraSpeed = 2): #type: ignore
+    def __init__(self, cameraPos: vec3, imageWidth: int, fov: float, lookAt: vec3, aspectRatio: float, tMin: float, tMax: float, samplesPerPixel: int, maxDepth: int, vectorUp = vec3(0, 1, 0), cameraSpeed = 0.2): #type: ignore
         super().__init__()
-        self.cameraSpeed, self.fov = cameraSpeed, fov
+        self.cameraSpeed, self.fov, self.vectorUp = cameraSpeed, fov, vectorUp
         self.createCameraMovement(cameraPos, lookAt)
-        self.createUnitVectors()
-        self.createRenderValues()
+        self.cameraUnitVectors = cameraUnitVectors()
+        self.cameraRenderValues = cameraRenderValues()
 
         self.imageWidth, self.imageHeight = imageWidth, calculateImageHeight(imageWidth, aspectRatio)
         self.tInterval, self.samplesPerPixel, self.maxDepth = interval(tMin, tMax), samplesPerPixel, maxDepth
         self.pixelField = ti.Vector.field(3, float, shape = (self.imageWidth, self.imageHeight))
 
-        self.setCamera(vectorUp)
+        self.setCamera()
 
     def createCameraMovement(self, cameraPos: vec3, lookAt: vec3): #type: ignore
         '''
         Create the camera movement dataclass
         '''
-        movementField = ti.Vector.field(3, float, shape = (2,)) 
-        movementField[0], movementField[1] = cameraPos, lookAt 
-        self.cameraMovement = cameraMovement(movementField)
-
-    def createUnitVectors(self): 
-        '''
-        Create the unit vector dataclass
-        '''
-        unitVectorField = ti.Vector.field(3, float, shape = (3,))
-        unitVectorField.fill(defaultCamVec())
-        self.cameraUnitVectors = cameraUnitVectors(unitVectorField)
+        self.cameraMovement = cameraMovement()
+        self.cameraMovement.positionField[0] = cameraPos 
+        self.cameraMovement.positionField[1] = lookAt 
+    
+    @ti.kernel 
+    def setMovementX(self, value: int):
+        self.cameraMovement.movementField[0] = value 
+    
+    @ti.kernel 
+    def setMovementZ(self, value: int):
+        self.cameraMovement.movementField[1] = value
 
     @ti.kernel 
-    def calculateUnitVectors(self, vectorUp: vec3): #type: ignore 
+    def calculateUnitVectors(self): #type: ignore 
         '''
         Calculate the camera's unit vectors
         '''
         self.cameraUnitVectors.calculateK(self.cameraMovement)
-        self.cameraUnitVectors.calculateI(vectorUp)
+        self.cameraUnitVectors.calculateI(self.vectorUp)
         self.cameraUnitVectors.calculateJ()
-
-    def createRenderValues(self):
-        '''
-        Create the render values dataclass
-        '''
-        pixelField = ti.Vector.field(3, float, shape = (3,))
-        pixelField.fill(defaultCamVec())
-        self.cameraRenderValues = cameraRenderValues(pixelField)
 
     @ti.func
     def calculateRenderValues(self, viewportWidthVector: vec3, viewportHeightVector: vec3, focalLength: float): #type: ignore
@@ -211,11 +239,16 @@ class Camera(World):
         viewportWidthVector, viewportHeightVector = viewportWidth * self.cameraUnitVectors.i(), viewportHeight * self.cameraUnitVectors.j()
         self.calculateRenderValues(viewportWidthVector, viewportHeightVector, focalLength)
 
-    def setCamera(self, vectorUp: vec3): #type: ignore
+    @ti.kernel 
+    def moveCamera(self):
+        self.cameraMovement.moveCamera(self.cameraSpeed, self.cameraUnitVectors)
+
+    def setCamera(self): #type: ignore
         '''
         Reset the camera's specific values that depend upon its position and what it's looking at
         '''
-        self.calculateUnitVectors(vectorUp)
+        self.moveCamera()
+        self.calculateUnitVectors()
         self.calculateRender()
 
     @ti.func 
