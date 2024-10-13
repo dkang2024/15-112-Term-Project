@@ -87,4 +87,4 @@ def refract(v, n, etaRatio, cosTheta):
     '''
     rPerp = etaRatio * (v + cosTheta * n)
     rParallel = -ti.sqrt(ti.abs(1.0 - tm.dot(rPerp, rPerp))) * n 
-    return rPerp + rParallel
+    return rPerp + rParallel 

@@ -33,6 +33,14 @@ def cameraKeyMovement(camera, window):
     else: 
         camera.setMovementZ(0)
 
+def cameraMouseMovement(camera, window):
+    '''
+    Allow the camera to change what it's looking at using the mouse
+    '''
+    mouseX, mouseY = window.get_cursor_pos()    
+    camera.mousePositions.setMouseX(mouseX)
+    camera.mousePositions.setMouseY(mouseY)
+
 @ti.kernel
 def calculateImageHeight(imageWidth: int, aspectRatio: float) -> int:
     '''
@@ -47,21 +55,50 @@ def defaultCamVec() -> vec3: #type: ignore
     '''
     return vec3(0, 0, 0)
 
+@ti.data_oriented 
+class cameraMousePositions: 
+    '''
+    Store the data for the position of the mouse for the camera
+    '''
+
+    def __init__(self):
+        self.mousePositionField = ti.field(float, shape = (2,))
+
+    @ti.func 
+    def mouseX(self):
+        return self.mousePositionField[0]
+    
+    @ti.func
+    def mouseY(self):
+        return self.mousePositionField[1]
+    
+    @ti.kernel 
+    def setMouseX(self, mouseX: float):
+        self.mousePositionField[0] = mouseX 
+    
+    @ti.kernel 
+    def setMouseY(self, mouseY: float):
+        self.mousePositionField[1] = mouseY
+
 @ti.data_oriented
 class cameraMovement:
     '''
     Store the data for camera position and movement in a Taichi field because everything else is immutatable for Taichi
     '''
     def __init__(self):
-        self.positionField, self.movementField = ti.Vector.field(3, float, shape = (2,)), ti.field(int, shape = (3,))
+        self.positionField, self.lookAtField, self.movementField = ti.Vector.field(3, float, shape = (2,)), ti.Vector.field(3, float, shape = ()), ti.field(int, shape = (3,))
 
     @ti.func
     def cameraPos(self):
         return self.positionField[0]
 
     @ti.func 
-    def lookAt(self):
+    def lookAtPreRotation(self):
         return self.positionField[1]
+    
+    @ti.func 
+    def lookAtPostRotation(self):
+        return self.lookAtField[None]
     
     @ti.func 
     def dirX(self):
@@ -85,8 +122,22 @@ class cameraMovement:
             self.positionField[i] += deltaX + deltaY + deltaZ
 
     @ti.func 
-    def calculateLookAt(self, unitVectors, viewportWidthVector, mouseX, viewportHeightVector, mouseY, focalLength):
-        self.positionField[1] = viewportWidthVector * mouseX + viewportHeightVector * mouseY - focalLength * unitVectors.k()
+    def mouseToAngle(self, mousePos):
+        '''
+        Convert mouse position on the screen to an angle in the camera's i or j direction
+        '''
+        return 178 * (mousePos - 0.5)
+
+    @ti.func 
+    def calculateExtraDisplacement(self, distancePoint, angle, unitVector):
+        return distancePoint * ti.tan(tm.radians(angle)) * unitVector
+
+    @ti.func 
+    def calculateLookAt(self, unitVectors, mousePositions):
+        alpha, beta = self.mouseToAngle(mousePositions.mouseX()), self.mouseToAngle(mousePositions.mouseY())
+        distancePoint = tm.distance(self.cameraPos(), self.lookAtPreRotation())
+
+        self.lookAtField[None] = self.positionField[1] + self.calculateExtraDisplacement(distancePoint, alpha, unitVectors.i()) + self.calculateExtraDisplacement(distancePoint, beta, unitVectors.j())
     
 @ti.data_oriented
 class cameraUnitVectors: 
@@ -126,11 +177,11 @@ class cameraUnitVectors:
         self.unitVectorField[1] = tm.cross(self.k(), self.i())
     
     @ti.func
-    def calculateK(self, movement: ti.template()): #type: ignore
+    def calculateK(self, movement, lookAt): #type: ignore
         '''
         Calculate the camera's unit vector in the +z direction
         '''
-        self.unitVectorField[2] = tm.normalize(movement.cameraPos() - movement.lookAt())
+        self.unitVectorField[2] = tm.normalize(movement.cameraPos() - lookAt)
 
 @ti.data_oriented 
 class cameraIntermediateValues:
@@ -157,7 +208,7 @@ class cameraIntermediateValues:
         '''
         Calculate the camera's focal length. 
         '''
-        cameraPosVector = movement.cameraPos() - movement.lookAt()
+        cameraPosVector = movement.cameraPos() - movement.lookAtPostRotation()
         self.focalLengthField[None] = tm.dot(cameraPosVector, cameraPosVector) ** 0.5
     
     @ti.func 
@@ -209,6 +260,7 @@ class Camera(World):
         super().__init__()
         self.cameraSpeed, self.fov, self.vectorUp = cameraSpeed, fov, vectorUp
         self.createCameraMovement(cameraPos, lookAt)
+        self.createCameraMousePositions()
         self.unitVectors = cameraUnitVectors()
         self.intermediateValues = cameraIntermediateValues()
         self.renderValues = cameraRenderValues()
@@ -219,6 +271,13 @@ class Camera(World):
 
         self.setCamera()
 
+    def createCameraMousePositions(self):
+        '''
+        Initialize to default camera mouse positions
+        '''
+        self.mousePositions = cameraMousePositions()
+        self.mousePositions.mousePositionField.fill(0.5)
+
     def createCameraMovement(self, cameraPos: vec3, lookAt: vec3): #type: ignore
         '''
         Create the camera movement dataclass
@@ -226,6 +285,7 @@ class Camera(World):
         self.movement = cameraMovement()
         self.movement.positionField[0] = cameraPos 
         self.movement.positionField[1] = lookAt 
+        self.movement.lookAtField[None] = lookAt
     
     @ti.kernel 
     def setMovementX(self, value: int):
@@ -240,11 +300,14 @@ class Camera(World):
         self.movement.movementField[2] = value
 
     @ti.kernel 
-    def calculateUnitVectors(self): #type: ignore 
+    def calculateUnitVectors(self, isPostRotation: bool):
         '''
-        Calculate the camera's unit vectors
+        Calculate the camera's unit vectors pre and post rotation
         '''
-        self.unitVectors.calculateK(self.movement)
+        if isPostRotation: 
+            self.unitVectors.calculateK(self.movement, self.movement.lookAtPostRotation())
+        else: 
+            self.unitVectors.calculateK(self.movement, self.movement.lookAtPreRotation())
         self.unitVectors.calculateI(self.vectorUp)
         self.unitVectors.calculateJ()
 
@@ -291,8 +354,14 @@ class Camera(World):
         Reset the camera's specific values that depend upon its position and what it's looking at
         '''
         self.moveCamera()
-        self.calculateUnitVectors()
+        self.calculateUnitVectors(False)
+        self.calculateLookAt()
+        self.calculateUnitVectors(True)
         self.calculateRender()
+
+    @ti.kernel 
+    def calculateLookAt(self):
+        self.movement.calculateLookAt(self.unitVectors, self.mousePositions)
 
     @ti.func 
     def getRayColor(self, ray): 
