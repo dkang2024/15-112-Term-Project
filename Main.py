@@ -13,7 +13,7 @@ def renderScene(cameraPos: vec3, imageWidth: int, fov: float, focalLength: float
     camera.addHittable(sphere3(vec3(-1, 0, -1), 0.5, materialLeft))
     camera.addHittable(sphere3(vec3(1, 0, -1), 0.5, materialRight))
 
-    window = ti.ui.Window('Render Test', res = (camera.imageWidth, camera.imageHeight))
+    window = ti.ui.Window('Render Test', res = (camera.imageWidth, camera.imageHeight), pos = (100, 100))
     canvas = window.get_canvas()
 
     while window.running: 
@@ -24,4 +24,4 @@ def renderScene(cameraPos: vec3, imageWidth: int, fov: float, focalLength: float
         canvas.set_image(camera.pixelField)
         window.show()
         
-renderScene(vec3(0, 0, 0), 2000, 90, vec3(0, 0, -1), 16 / 9, 2, 25)
+renderScene(vec3(0, 0, 1), 2000, 90, vec3(0, 0, -1), 16 / 9, 2, 25)
