@@ -30,9 +30,29 @@ class aabb:
         return pointInterval
 
     @ti.func 
+    def calculateIntersection(self, axisValue, rayOrigin, rayDirection):
+        return (axisValue - rayOrigin) / rayDirection
+
+    @ti.func 
     def hit(self, ray, tInterval):
         '''
         Check whether the ray hits the axis aligned bounding box
         '''
+        wasHit = True
         for i in ti.static(range(3)):
-            print(i)
+            axisInterval = self.getIntervalWithIndex(i)
+
+            t0 = self.calculateIntersection(axisInterval.minValue, ray.origin[i], ray.direction[i])
+            t1 = self.calculateIntersection(axisInterval.maxValue, ray.origin[i], ray.direction[i])
+            t0, t1 = ti.min(t0, t1), ti.max(t0, t1)
+
+            if t0 > tInterval.minValue:
+                tInterval.minValue = t0 
+            elif t1 < tInterval.maxValue:
+                tInterval.maxValue = t1 
+
+            if tInterval.maxValue <= tInterval.minValue:
+                wasHit = False 
+                break
+        return wasHit
+        
