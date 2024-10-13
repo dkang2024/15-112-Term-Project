@@ -83,6 +83,10 @@ class cameraMovement:
         deltaX, deltaY, deltaZ = self.dirX() * cameraSpeed * unitVectors.i(), self.dirY() * cameraSpeed * unitVectors.j(), self.dirZ() * cameraSpeed * unitVectors.k()
         for i in self.positionField: 
             self.positionField[i] += deltaX + deltaY + deltaZ
+
+    @ti.func 
+    def calculateLookAt(self, unitVectors, viewportWidthVector, mouseX, viewportHeightVector, mouseY, focalLength):
+        self.positionField[1] = viewportWidthVector * mouseX + viewportHeightVector * mouseY - focalLength * unitVectors.k()
     
 @ti.data_oriented
 class cameraUnitVectors: 
@@ -128,6 +132,38 @@ class cameraUnitVectors:
         '''
         self.unitVectorField[2] = tm.normalize(movement.cameraPos() - movement.lookAt())
 
+@ti.data_oriented 
+class cameraIntermediateValues:
+    '''
+    Store and calculate the camera's intermediate values that are used to calculate more important values
+    '''
+    def __init__(self):
+        self.focalLengthField, self.viewportVectors = ti.field(float, shape = ()), ti.Vector.field(3, float, shape = (2,))
+
+    @ti.func
+    def focalLength(self):
+        return self.focalLengthField[None]
+
+    @ti.func
+    def viewportWidthVector(self):
+        return self.viewportVectors[0]
+    
+    @ti.func 
+    def viewportHeightVector(self):
+        return self.viewportVectors[1]
+    
+    @ti.func 
+    def calculateFocalLength(self, movement):
+        '''
+        Calculate the camera's focal length. 
+        '''
+        cameraPosVector = movement.cameraPos() - movement.lookAt()
+        self.focalLengthField[None] = tm.dot(cameraPosVector, cameraPosVector) ** 0.5
+    
+    @ti.func 
+    def calculateViewportVectors(self, viewportWidth, viewportHeight, unitVectors):
+        self.viewportVectors[0], self.viewportVectors[1] = viewportWidth * unitVectors.i(), viewportHeight * unitVectors.j()
+
 @ti.data_oriented
 class cameraRenderValues:
     '''
@@ -149,19 +185,19 @@ class cameraRenderValues:
         return self.pixelField[2]
 
     @ti.func
-    def calculatePixelDelta(self, viewportWidthVector, imageWidth, viewportHeightVector, imageHeight): 
+    def calculatePixelDelta(self, intermediateValues, imageWidth, imageHeight): 
         '''
         Calculates the displacement vector in between pixels on the image in the viewport and sets them in the Taichi field.
         '''
-        self.pixelField[0] = viewportWidthVector / imageWidth 
-        self.pixelField[1] = viewportHeightVector / imageHeight
+        self.pixelField[0] = intermediateValues.viewportWidthVector() / imageWidth 
+        self.pixelField[1] = intermediateValues.viewportHeightVector() / imageHeight
 
     @ti.func
-    def calculateFirstPixelPos(self, cameraPos: vec3, viewportWidthVector: vec3, viewportHeightVector: vec3, focalLength: float, k: vec3): #type: ignore
+    def calculateFirstPixelPos(self, movement, intermediateValues, unitVectors): #type: ignore
         '''
         Calculates the position of the first pixel on the viewport in terms of the world's coordinate system
         '''
-        viewportBottomLeftPos = cameraPos - focalLength * k - (viewportWidthVector + viewportHeightVector) / 2
+        viewportBottomLeftPos = movement.cameraPos() - intermediateValues.focalLength() * unitVectors.k() - (intermediateValues.viewportWidthVector() + intermediateValues.viewportHeightVector()) / 2
         self.pixelField[2] = viewportBottomLeftPos + (self.pixelDX() + self.pixelDY()) / 2
 
 @ti.data_oriented 
@@ -173,8 +209,9 @@ class Camera(World):
         super().__init__()
         self.cameraSpeed, self.fov, self.vectorUp = cameraSpeed, fov, vectorUp
         self.createCameraMovement(cameraPos, lookAt)
-        self.cameraUnitVectors = cameraUnitVectors()
-        self.cameraRenderValues = cameraRenderValues()
+        self.unitVectors = cameraUnitVectors()
+        self.intermediateValues = cameraIntermediateValues()
+        self.renderValues = cameraRenderValues()
 
         self.imageWidth, self.imageHeight = imageWidth, calculateImageHeight(imageWidth, aspectRatio)
         self.tInterval, self.samplesPerPixel, self.maxDepth = interval(tMin, tMax), samplesPerPixel, maxDepth
@@ -186,46 +223,38 @@ class Camera(World):
         '''
         Create the camera movement dataclass
         '''
-        self.cameraMovement = cameraMovement()
-        self.cameraMovement.positionField[0] = cameraPos 
-        self.cameraMovement.positionField[1] = lookAt 
+        self.movement = cameraMovement()
+        self.movement.positionField[0] = cameraPos 
+        self.movement.positionField[1] = lookAt 
     
     @ti.kernel 
     def setMovementX(self, value: int):
-        self.cameraMovement.movementField[0] = value 
+        self.movement.movementField[0] = value 
     
     @ti.kernel 
     def setMovementY(self, value: int):
-        self.cameraMovement.movementField[1] = value
+        self.movement.movementField[1] = value
 
     @ti.kernel 
     def setMovementZ(self, value: int):
-        self.cameraMovement.movementField[2] = value
+        self.movement.movementField[2] = value
 
     @ti.kernel 
     def calculateUnitVectors(self): #type: ignore 
         '''
         Calculate the camera's unit vectors
         '''
-        self.cameraUnitVectors.calculateK(self.cameraMovement)
-        self.cameraUnitVectors.calculateI(self.vectorUp)
-        self.cameraUnitVectors.calculateJ()
+        self.unitVectors.calculateK(self.movement)
+        self.unitVectors.calculateI(self.vectorUp)
+        self.unitVectors.calculateJ()
 
     @ti.func
-    def calculateRenderValues(self, viewportWidthVector: vec3, viewportHeightVector: vec3, focalLength: float): #type: ignore
+    def calculateRenderValues(self): #type: ignore
         '''
         Calculate specific values for the camera's render values
         '''
-        self.cameraRenderValues.calculatePixelDelta(viewportWidthVector, self.imageWidth, viewportHeightVector, self.imageHeight)
-        self.cameraRenderValues.calculateFirstPixelPos(self.cameraMovement.cameraPos(), viewportWidthVector, viewportHeightVector, focalLength, self.cameraUnitVectors.k())
-
-    @ti.func 
-    def calculateFocalLength(self):
-        '''
-        Calculate the camera's focal length. 
-        '''
-        cameraPosVector = self.cameraMovement.cameraPos() - self.cameraMovement.lookAt()
-        return tm.dot(cameraPosVector, cameraPosVector) ** 0.5
+        self.renderValues.calculatePixelDelta(self.intermediateValues, self.imageWidth, self.imageHeight)
+        self.renderValues.calculateFirstPixelPos(self.movement, self.intermediateValues, self.unitVectors)
     
     @ti.func
     def calculateViewportWidth(self, viewportHeight: float) -> float: 
@@ -235,27 +264,27 @@ class Camera(World):
         return viewportHeight * (self.imageWidth / self.imageHeight)
     
     @ti.func
-    def calculateViewportHeight(self, focalLength: float) -> float: 
+    def calculateViewportHeight(self) -> float: 
         '''
         Calculate the camera's viewport height
         '''
         tanTheta = ti.tan(tm.radians(self.fov) / 2)
-        return ti.abs(2 * tanTheta * focalLength) 
+        return ti.abs(2 * tanTheta * self.intermediateValues.focalLength()) 
 
     @ti.kernel 
     def calculateRender(self):
         '''
         Calculate the render values necessary for the camera, including the intermediate ones necessary for the calculation.
         '''
-        focalLength = self.calculateFocalLength()
-        viewportHeight = self.calculateViewportHeight(focalLength)
+        self.intermediateValues.calculateFocalLength(self.movement)
+        viewportHeight = self.calculateViewportHeight()
         viewportWidth = self.calculateViewportWidth(viewportHeight)
-        viewportWidthVector, viewportHeightVector = viewportWidth * self.cameraUnitVectors.i(), viewportHeight * self.cameraUnitVectors.j()
-        self.calculateRenderValues(viewportWidthVector, viewportHeightVector, focalLength)
+        self.intermediateValues.calculateViewportVectors(viewportWidth, viewportHeight, self.unitVectors)
+        self.calculateRenderValues()
 
     @ti.kernel 
     def moveCamera(self):
-        self.cameraMovement.moveCamera(self.cameraSpeed, self.cameraUnitVectors)
+        self.movement.moveCamera(self.cameraSpeed, self.unitVectors)
 
     def setCamera(self): #type: ignore
         '''
@@ -301,8 +330,8 @@ class Camera(World):
         Construct the ray from the camera to the viewport
         '''
         pixelOffset = self.samplePixel()
-        rayDir = self.cameraRenderValues.initPixelPos() + (i + pixelOffset) * self.cameraRenderValues.pixelDX() + (j + pixelOffset) * self.cameraRenderValues.pixelDY() - self.cameraMovement.cameraPos()
-        return ray3(self.cameraMovement.cameraPos(), rayDir)
+        rayDir = self.renderValues.initPixelPos() + (i + pixelOffset) * self.renderValues.pixelDX() + (j + pixelOffset) * self.renderValues.pixelDY() - self.movement.cameraPos()
+        return ray3(self.movement.cameraPos(), rayDir)
     
     @ti.func 
     def linearToGamma(self, pixel):
