@@ -17,6 +17,7 @@ class aabb:
         '''
         return interval(min(x1, x2), max(x1, x2))
     
+    
     @ti.func
     def getIntervalWithIndex(self, index):
         '''
@@ -36,7 +37,7 @@ class aabb:
     @ti.func 
     def hit(self, ray, tInterval):
         '''
-        Check whether the ray hits the axis aligned bounding box
+        Check whether the ray hits the axis aligned bounding box. Remember to pass a copied tInterval to avoid any potential aliasing issues
         '''
         wasHit = True
         for i in ti.static(range(3)):

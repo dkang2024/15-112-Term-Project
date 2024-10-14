@@ -1,6 +1,7 @@
 from Vectors import * 
 from Materials import *
 from Hittable import * 
+from BoundBox import *
 
 @ti.func 
 def simplifiedDiscriminant(a, c, h):
@@ -42,6 +43,7 @@ class sphere3():
     '''
     def __init__(self, center, radius, material):
         self.center, self.radius, self.material = center, radius, material
+        self.boundingBox = aabb(self.center - self.radius, self.center + self.radius)
 
     @ti.func
     def hit(self, ray, tempHitRecord): 

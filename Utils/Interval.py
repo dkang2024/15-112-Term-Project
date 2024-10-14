@@ -24,6 +24,10 @@ class interval:
         return interval(self.minValue - padding, self.maxValue + padding)
     
 @ti.func 
+def copyInterval(intervalValue):
+    return interval(intervalValue.minValue, intervalValue.maxValue)
+    
+@ti.func 
 def overlaps(interval1, interval2):
     '''
     Check whether intervals overlap for checking bounding boxes
