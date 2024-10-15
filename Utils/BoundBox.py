@@ -10,10 +10,6 @@ def createBoundingBox(p1, p2):
     z = setInterval(getKernelZ(p1), getKernelZ(p2))
     return aabb(x, y, z)
 
-@ti.func
-def addTwoBoundingBoxes(bb1, bb2):
-    return bb1.addBoundingBox(bb2)
-
 @ti.dataclass
 class aabb:
     '''

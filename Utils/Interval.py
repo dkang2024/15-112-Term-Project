@@ -23,10 +23,6 @@ class interval:
         padding = delta / 2
         return interval(self.minValue - padding, self.maxValue + padding)
     
-    @ti.func 
-    def addInterval(self, interval2):
-        return interval(ti.min(self.minValue, interval2.minValue), ti.max(self.maxValue, interval2.maxValue))
-    
 @ti.func 
 def copyInterval(intervalValue):
     return interval(intervalValue.minValue, intervalValue.maxValue)

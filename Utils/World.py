@@ -1,5 +1,4 @@
 from Objects import * 
-from BVH import *
 
 @ti.data_oriented 
 class World: 
