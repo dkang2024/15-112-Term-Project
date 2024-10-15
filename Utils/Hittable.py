@@ -2,14 +2,6 @@ from Rays import *
 from Interval import *
 
 @ti.func
-def defaultVec():
-    return vec3(0, 0, 0)
-
-@ti.func 
-def defaultRay():
-    return ray3(defaultVec(), defaultVec())
-
-@ti.func
 def initDefaultHitRecord(tInterval):
     '''
     Initializes the default state of a hit record with maximal ray distance

@@ -1,22 +1,33 @@
 from Rays import * 
 from Interval import *
 
-@ti.dataclass 
+@ti.data_oriented
 class aabb:
     '''
     Axis aligned bounding box for BVH ray tracing optimizations
     '''
     def __init__(self, p1, p2):
-        self.x = self.setInterval(getX(p1), getX(p2))
-        self.y = self.setInterval(getY(p1), getY(p2))
-        self.z = self.setInterval(getZ(p1), getZ(p2))
-        
-    def setInterval(self, x1, x2):
+        self.x = self.setInterval(getKernelX(p1), getKernelX(p2))
+        self.y = self.setInterval(getKernelY(p1), getKernelY(p2))
+        self.z = self.setInterval(getKernelZ(p1), getKernelZ(p2))
+    
+    def setInterval(self, x1: float, x2: float): 
         '''
         Correctly set intervals with min values on the left and max values on the right
         '''
-        return interval(min(x1, x2), max(x1, x2))
+        newInterval = interval()
+        newInterval.intervalField[0] = min(x1, x2)
+        newInterval.intervalField[1] = max(x1, x2)
+        return newInterval
     
+    @ti.kernel 
+    def addBoundingBox(self, bb2: ti.template()): #type: ignore
+        '''
+        Add the interval of another bounding box to create a larger bounding box 
+        '''
+        self.x.addInterval(bb2.x)
+        self.y.addInterval(bb2.y)
+        self.z.addInterval(bb2.z)
     
     @ti.func
     def getIntervalWithIndex(self, index):
@@ -49,7 +60,7 @@ class aabb:
 
             if t0 > tInterval.minValue:
                 tInterval.minValue = t0 
-            elif t1 < tInterval.maxValue:
+            if t1 < tInterval.maxValue:
                 tInterval.maxValue = t1 
 
             if tInterval.maxValue <= tInterval.minValue:

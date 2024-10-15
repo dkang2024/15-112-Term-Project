@@ -48,13 +48,6 @@ def calculateImageHeight(imageWidth: int, aspectRatio: float) -> int:
     '''
     return ti.ceil(imageWidth / aspectRatio, int) #Ceiling ensures imageHeight >= 1
 
-@ti.kernel 
-def defaultCamVec() -> vec3: #type: ignore
-    '''
-    Allow default vectors to be created in Python's scope
-    '''
-    return vec3(0, 0, 0)
-
 @ti.data_oriented 
 class cameraMousePositions: 
     '''

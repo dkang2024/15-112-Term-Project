@@ -14,3 +14,7 @@ class ray3:
         Get a point on the ray using the parametric equation
         '''
         return self.origin + self.direction * t
+    
+@ti.func 
+def defaultRay():
+    return ray3(defaultVec(), defaultVec())

@@ -31,6 +31,18 @@ def getY(vector):
 def getZ(vector):
     return vector[2]
 
+@ti.kernel 
+def getKernelX(vector: vec3) -> float: #type: ignore 
+    return vector[0]
+
+@ti.kernel 
+def getKernelY(vector: vec3) -> float: #type: ignore 
+    return vector[1]
+
+@ti.kernel 
+def getKernelZ(vector: vec3) -> float: #type: ignore 
+    return vector[2]
+
 @ti.func 
 def getRandomValueWithR(rSquared):
     '''
@@ -40,6 +52,20 @@ def getRandomValueWithR(rSquared):
     value = randomRange(-r, r)
     rSquared -= value ** 2
     return value, rSquared
+
+@ti.func
+def defaultVec():
+    '''
+    Create the default vector
+    '''
+    return vec3(0, 0, 0)
+
+@ti.kernel 
+def defaultKernelVec() -> vec3: #type: ignore
+    '''
+    Allow default vectors to be created in Python's scope
+    '''
+    return vec3(0, 0, 0)
 
 @ti.func
 def chooseX(rSquared):
