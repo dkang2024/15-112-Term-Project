@@ -25,8 +25,7 @@ class interval:
     
     @ti.func 
     def addInterval(self, interval2):
-        self.minValue = ti.min(self.minValue, interval2.minValue)
-        self.maxValue = ti.max(self.maxValue, interval2.maxValue)
+        return interval(ti.min(self.minValue, interval2.minValue), ti.max(self.maxValue, interval2.maxValue))
     
 @ti.func 
 def copyInterval(intervalValue):

@@ -1,4 +1,5 @@
 from Objects import * 
+from BVH import *
 
 @ti.data_oriented 
 class World: 
@@ -6,12 +7,7 @@ class World:
     Sets the world scene for all hittable objects
     '''
     def __init__(self):
-        self.hittable = []
-        self.boundingBox = ti.Struct.field({
-            'x': interval, 
-            'y': interval, 
-            'z': interval
-        }, shape = ())
+        self.hittable, self.BVHTree = [], []
     
     @ti.kernel 
     def addHittable(self, hittableObject: ti.template()): #type: ignore
@@ -19,23 +15,22 @@ class World:
         Add a hittable object and its classification 
         '''
         self.hittable.append(hittableObject)
-
+    
     @ti.kernel 
-    def createBoundingBox(self): 
-        boundingBox = self.hittable[0].boundingBox 
-        for i in ti.static(range(1, len(self.hittable))):
-            boundingBox.addBoundingBox(self.hittable[i].boundingBox)
-        self.boundingBox[None] = boundingBox
-
-    def returnBoundingBox(self):
-        return self.boundingBox[None]
+    def constructBVHTree(self):
+        self.BVHTree.append(BVHNode(self.hittable))
+    
+    def returnBVHTree(self):
+        return self.BVHTree[0]
 
     @ti.func
     def hitObjects(self, ray, rayHitRecord):
         '''
         Iterate through the hittable objects list and check the smallest t that it intersects with to get the closest possible object
         '''
-        hitAnything = False #Set defaults for these variables
+        hitAnything, BVHRoot, hitObject = False, self.BVHTree[0], False #Set defaults for these variables
+        while not hitObject:
+            hitAnything, BVHRoot, isObject = BVHRoot.hit(ray, rayHitRecord)
         for i in ti.static(range(len(self.hittable))):
             objectHit, tempHitRecord = self.hittable[i].hit(ray, initDefaultHitRecord(rayHitRecord.tInterval))
             if objectHit:

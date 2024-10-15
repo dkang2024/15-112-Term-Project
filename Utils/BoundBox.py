@@ -10,6 +10,10 @@ def createBoundingBox(p1, p2):
     z = setInterval(getKernelZ(p1), getKernelZ(p2))
     return aabb(x, y, z)
 
+@ti.func
+def addTwoBoundingBoxes(bb1, bb2):
+    return bb1.addBoundingBox(bb2)
+
 @ti.dataclass
 class aabb:
     '''
@@ -24,9 +28,7 @@ class aabb:
         '''
         Add the interval of another bounding box to create a larger bounding box 
         '''
-        self.x.addInterval(bb2.x)
-        self.y.addInterval(bb2.y)
-        self.z.addInterval(bb2.z)
+        return aabb(self.x.addInterval(bb2.x), self.y.addInterval(bb2.y), self.z.addInterval(bb2.z))
     
     @ti.func
     def getIntervalWithIndex(self, index):
@@ -47,7 +49,7 @@ class aabb:
     @ti.func 
     def hit(self, ray, tInterval):
         '''
-        Check whether the ray hits the axis aligned bounding box. Remember to pass a copied tInterval to avoid any potential aliasing issues
+        Check whether the ray hits the axis aligned bounding box. 
         '''
         wasHit = True
         for i in ti.static(range(3)):
