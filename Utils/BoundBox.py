@@ -1,26 +1,25 @@
 from Rays import * 
 from Interval import *
 
-@ti.data_oriented
+def setInterval(x1, x2):
+    return interval(min(x1, x2), max(x1, x2))
+
+def createBoundingBox(p1, p2):
+    x = setInterval(getKernelX(p1), getKernelX(p2))
+    y = setInterval(getKernelY(p1), getKernelY(p2))
+    z = setInterval(getKernelZ(p1), getKernelZ(p2))
+    return aabb(x, y, z)
+
+@ti.dataclass
 class aabb:
     '''
     Axis aligned bounding box for BVH ray tracing optimizations
     '''
-    def __init__(self, p1, p2):
-        self.x = self.setInterval(getKernelX(p1), getKernelX(p2))
-        self.y = self.setInterval(getKernelY(p1), getKernelY(p2))
-        self.z = self.setInterval(getKernelZ(p1), getKernelZ(p2))
+    x: interval 
+    y: interval 
+    z: interval 
     
-    def setInterval(self, x1: float, x2: float): 
-        '''
-        Correctly set intervals with min values on the left and max values on the right
-        '''
-        newInterval = interval()
-        newInterval.intervalField[0] = min(x1, x2)
-        newInterval.intervalField[1] = max(x1, x2)
-        return newInterval
-    
-    @ti.kernel 
+    @ti.func
     def addBoundingBox(self, bb2: ti.template()): #type: ignore
         '''
         Add the interval of another bounding box to create a larger bounding box 

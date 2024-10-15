@@ -1,6 +1,7 @@
 from Vectors import * 
 from Materials import *
 from Hittable import * 
+from BoundBox import *
 
 @ti.func 
 def simplifiedDiscriminant(a, c, h):
@@ -44,6 +45,7 @@ class sphere3():
         self.center, self.radius, self.material = center, radius, material
 
         radiusVector = vec3(self.radius, self.radius, self.radius)
+        self.boundingBox = createBoundingBox(self.center - radiusVector, self.center + radiusVector)
 
     @ti.func
     def hit(self, ray, tempHitRecord): 
