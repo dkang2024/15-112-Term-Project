@@ -1,7 +1,6 @@
 from BoundBox import * 
 import copy 
 
-@ti.data_oriented
 class BVHNode:
     '''
     Implements a node for a BVH

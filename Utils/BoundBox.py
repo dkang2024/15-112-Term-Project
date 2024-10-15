@@ -52,7 +52,7 @@ class aabb:
         Check whether the ray hits the axis aligned bounding box. 
         '''
         wasHit = True
-        for i in ti.static(range(3)):
+        for i in range(3):
             axisInterval = self.getIntervalWithIndex(i)
 
             t0 = self.calculateIntersection(axisInterval.minValue, ray.origin[i], ray.direction[i])
