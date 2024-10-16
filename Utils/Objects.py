@@ -52,20 +52,19 @@ class sphere3():
         '''
         Check whether a ray intersects with a sphere and return t = -1.0 if it doesn't
         '''
+        
+        rayToSphereCenter = self.center - ray.origin
+        a, h, c = tm.dot(ray.direction, ray.direction), tm.dot(ray.direction, rayToSphereCenter), tm.dot(rayToSphereCenter, rayToSphereCenter) - self.radius ** 2
+        discriminant = simplifiedDiscriminant(a, c, h)
+
         hitSphere = False 
-
-        if self.boundingBox.hit(ray, tempHitRecord.tInterval):
-            rayToSphereCenter = self.center - ray.origin
-            a, h, c = tm.dot(ray.direction, ray.direction), tm.dot(ray.direction, rayToSphereCenter), tm.dot(rayToSphereCenter, rayToSphereCenter) - self.radius ** 2
-            discriminant = simplifiedDiscriminant(a, c, h)
-
-            if discriminant >= 0:
-                hitSphere, tempHitRecord.tInterval.maxValue = checkSphereIntersection(a, h, discriminant, tempHitRecord.tInterval)
-                if hitSphere:
-                    tempHitRecord.pointHit = ray.pointOnRay(tempHitRecord.t())
-                    tempHitRecord.initRayDir = ray.direction
-                    tempHitRecord.normalVector = findSphereNormalVector(ray, tempHitRecord.t(), self.center, self.radius)
-                    tempHitRecord.frontFace = tempHitRecord.isFrontFace(ray)
-                    tempHitRecord.didRayScatter, tempHitRecord.rayScatter, tempHitRecord.rayColor = self.material.scatter(tempHitRecord)
+        if discriminant >= 0:
+            hitSphere, tempHitRecord.tInterval.maxValue = checkSphereIntersection(a, h, discriminant, tempHitRecord.tInterval)
+            if hitSphere:
+                tempHitRecord.pointHit = ray.pointOnRay(tempHitRecord.t())
+                tempHitRecord.initRayDir = ray.direction
+                tempHitRecord.normalVector = findSphereNormalVector(ray, tempHitRecord.t(), self.center, self.radius)
+                tempHitRecord.frontFace = tempHitRecord.isFrontFace(ray)
+                tempHitRecord.didRayScatter, tempHitRecord.rayScatter, tempHitRecord.rayColor = self.material.scatter(tempHitRecord)
         
         return hitSphere, tempHitRecord

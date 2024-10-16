@@ -31,18 +31,6 @@ def getY(vector):
 def getZ(vector):
     return vector[2]
 
-@ti.kernel 
-def getKernelX(vector: vec3) -> float: #type: ignore 
-    return vector[0]
-
-@ti.kernel 
-def getKernelY(vector: vec3) -> float: #type: ignore 
-    return vector[1]
-
-@ti.kernel 
-def getKernelZ(vector: vec3) -> float: #type: ignore 
-    return vector[2]
-
 @ti.func 
 def getRandomValueWithR(rSquared):
     '''

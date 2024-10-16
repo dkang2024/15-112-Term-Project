@@ -16,22 +16,21 @@ class interval:
         return self.minValue < value and value < self.maxValue
     
     @ti.func 
-    def expand(self, delta):
+    def length(self):
         '''
-        Add padding to the sides of the interval
+        Return the interval's length
         '''
-        padding = delta / 2
-        return interval(self.minValue - padding, self.maxValue + padding)
+        return self.maxValue - self.minValue
     
 @ti.func 
 def copyInterval(intervalValue):
     return interval(intervalValue.minValue, intervalValue.maxValue)
-    
+
 @ti.func 
-def overlaps(interval1, interval2):
+def addIntervals(interval1, interval2):
     '''
-    Check whether intervals overlap for checking bounding boxes
+    Add two intervals to create a new interval encapsulating both
     '''
-    tMin = ti.max(interval1.minValue, interval2.minValue)
-    tMax = ti.min(interval1.maxValue, interval2.maxValue)
-    return tMin < tMax
+    minValue = ti.min(interval1.minValue, interval2.minValue)
+    maxValue = ti.max(interval1.maxValue, interval2.maxValue)
+    return interval(minValue, maxValue)
