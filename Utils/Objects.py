@@ -36,16 +36,35 @@ def checkSphereIntersection(a, h, discriminant, tInterval):
             t = -1.0
     return t >= 0, t
 
-@ti.data_oriented
-class sphere3(): 
+def initSphere(center: vec3, radius: float, material): #type: ignore
+    '''
+    Initialize and return a sphere dataclass with the properies
+    '''
+    sphere = sphere3(center, radius)
+    sphere.initBoundingBox()
+    sphere.addMaterial(material)
+    return sphere
+
+@ti.dataclass
+class sphere3: 
     '''
     Class for a sphere and its ray intersections
     '''
-    def __init__(self, center, radius, material):
-        self.center, self.radius, self.material = center, radius, material
-
+    center: vec3 #type: ignore 
+    radius: float #type: ignore
+    
+    def initBoundingBox(self):
+        '''
+        Create the sphere's bounding box
+        '''
         radiusVector = vec3(self.radius, self.radius, self.radius)
         self.boundingBox = createBoundingBox(self.center - radiusVector, self.center + radiusVector)
+
+    def addMaterial(self, material):
+        '''
+        Add a material to the sphere
+        '''
+        self.material = material 
 
     @ti.func
     def hit(self, ray, tempHitRecord): 
