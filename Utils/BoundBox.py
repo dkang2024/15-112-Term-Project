@@ -47,10 +47,11 @@ class aabb:
         return 2 * xLength * yLength + 2 * xLength * zLength + 2 * yLength * zLength 
 
     @ti.func 
-    def hit(self, ray, tInterval):
+    def hit(self, ray, tempHitRecord):
         '''
         Check whether the ray hits the axis aligned bounding box. 
         '''
+        tInterval = tempHitRecord.tInterval
         for i in ti.static(range(3)):
             axisInterval, inverseRayDirection = self.getIntervalWithIndex(i), 1 / ray.direction[i]
 
@@ -61,7 +62,9 @@ class aabb:
             tInterval.minValue = ti.max(t0, tInterval.minValue)
             tInterval.maxValue = ti.min(t1, tInterval.maxValue)
 
-        return tInterval.maxValue > tInterval.minValue, tInterval
+        tempHitRecord.hitAnything = tInterval.maxValue > tInterval.minValue
+        tempHitRecord.tInterval = copyInterval(tInterval)
+        return tempHitRecord
         
 @ti.func 
 def setInterval(x1, x2):

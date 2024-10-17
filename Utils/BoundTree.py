@@ -79,12 +79,11 @@ class BVHNode:
         return boundingBox
 
     @ti.kernel 
-    def hit(self, ray: ti.template(), rayHitRecord: ti.template()) -> bool: #type: ignore
+    def hit(self, ray: ti.template(), rayHitRecord: ti.template()) -> hitRecord: #type: ignore
         '''
         Check whether the ray hits this bounding box
         '''
-        didHit, tInterval = self.boundingBox.hit(ray, copyInterval(rayHitRecord.tInterval))
-        return didHit
+        return self.boundingBox.hit(ray, initDefaultHitRecord(rayHitRecord.tInterval))
 
 @ti.data_oriented 
 class BVHTree:
@@ -179,9 +178,19 @@ class BVHTree:
         i = 0
         while True: 
             currentNode = self.nodes[i]
-            wasHit = currentNode.hit(ray, rayHitRecord)
-            print(rayHitRecord.tInterval)
-            return wasHit 
+            rayHitRecord = currentNode.hit(ray, rayHitRecord)
+            if currentNode.isLeaf:
+                return True, currentNode.hittableList[0]
+            elif not rayHitRecord.hitAnything:
+                return False, 0 
+            leftChildIndex, rightChildIndex = currentNode.leftChild, currentNode.rightChild 
+
+            leftChild, rightChild = self.nodes[leftChildIndex], self.nodes[rightChildIndex]
+            leftChildHitRecord, rightChildHitRecord = leftChild.hit(ray, rayHitRecord), rightChild.hit(ray, rayHitRecord)
+            if leftChildHitRecord.tInterval.maxValue < rightChildHitRecord.tInterval.maxValue:
+                i = leftChildIndex
+            else:
+                i = rightChildIndex
     
 camera = World()
 materialGround = lambertianMaterial(vec3(0.8, 0.8, 0.0))
@@ -232,7 +241,10 @@ testTreeBuild()
 testTree.addHittable(sphere3(vec3(0, 0, 0), 0.5, materialFront))
 testTreeBuild()
 
-globalHitRecord = hitRecord(vec3(0, 0, 0), vec3(0, 0, 0), True, vec3(0, 0, 0), ray3(vec3(0, 0, 0), vec3(0, 0, 0)), vec3(0, 0, 0), interval(0, 1e10), True)
+globalHitRecord = hitRecord(False, vec3(0, 0, 0), vec3(0, 0, 0), True, vec3(0, 0, 0), ray3(vec3(0, 0, 0), vec3(0, 0, 0)), vec3(0, 0, 0), interval(0, 1e10), True)
 
+start = time.perf_counter()
 testTree.walkTree(ray3(vec3(0, 0, 0), vec3(0, 0, -1)), globalHitRecord)
+end = time.perf_counter()
+print(end - start)
 print([node.isLeaf for node in testTree.nodes].count(True))
