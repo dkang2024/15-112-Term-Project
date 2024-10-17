@@ -61,10 +61,11 @@ class sphere3():
         if discriminant >= 0:
             hitSphere, tempHitRecord.tInterval.maxValue = checkSphereIntersection(a, h, discriminant, tempHitRecord.tInterval)
             if hitSphere:
+                tempHitRecord.hitAnything = True 
                 tempHitRecord.pointHit = ray.pointOnRay(tempHitRecord.t())
                 tempHitRecord.initRayDir = ray.direction
                 tempHitRecord.normalVector = findSphereNormalVector(ray, tempHitRecord.t(), self.center, self.radius)
                 tempHitRecord.frontFace = tempHitRecord.isFrontFace(ray)
                 tempHitRecord.didRayScatter, tempHitRecord.rayScatter, tempHitRecord.rayColor = self.material.scatter(tempHitRecord)
         
-        return hitSphere, tempHitRecord
+        return tempHitRecord

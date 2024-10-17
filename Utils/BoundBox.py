@@ -38,7 +38,7 @@ class aabb:
         self.y = addIntervals(self.y, bb2.y)
         self.z = addIntervals(self.z, bb2.z)
 
-    @ti.func 
+    @ti.func
     def area(self) -> float:
         '''
         Calculate the bounding box's area

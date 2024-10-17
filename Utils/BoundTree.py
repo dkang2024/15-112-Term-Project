@@ -1,6 +1,7 @@
 from BoundBox import * 
 import copy 
 from Objects import * 
+import time
 
 import warnings
 warnings.filterwarnings("ignore") #Taichi throws warnings because classes are used in ti.kernel. We want to ignore these warnings (the classes are specifically designed to allow taichi to work)
@@ -53,15 +54,15 @@ class BVHNode:
     '''
     Node on the BVH Tree
     '''
-    def __init__(self, treeLength, hittableList):
+    def __init__(self, treeLength, childIndex, hittableList):
         self.hittableList = copy.copy(hittableList)
-        
+
         self.isLeaf = False 
         if len(self.hittableList) == 1:
             self.isLeaf = True 
-        
-        self.nodeIndex = treeLength - 1
-        self.leftChild, self.rightChild = treeLength, treeLength + 1  
+
+        self.nodeIndex = treeLength
+        self.leftChild, self.rightChild = treeLength + childIndex + 1, treeLength + childIndex + 2
         if self.isLeaf: 
             self.leftChild, self.rightChild = -1, -1
 
@@ -77,13 +78,13 @@ class BVHNode:
             boundingBox.addBoundingBox(self.hittableList[i].boundingBox)
         return boundingBox
 
-    @ti.func 
-    def hit(self, ray, rayHitRecord):
+    @ti.kernel 
+    def hit(self, ray: ti.template(), rayHitRecord: ti.template()) -> bool: #type: ignore
         '''
         Check whether the ray hits this bounding box
         '''
-        didHit, rayHitRecord.tInterval = self.boundingBox.hit(ray, copyInterval(rayHitRecord.tInterval))
-        return didHit, rayHitRecord
+        didHit, tInterval = self.boundingBox.hit(ray, copyInterval(rayHitRecord.tInterval))
+        return didHit
 
 @ti.data_oriented 
 class BVHTree:
@@ -91,9 +92,12 @@ class BVHTree:
     Create the BVH Tree and allow easy access to go througb it
     '''
     def __init__(self, hittableList):
-        self.nodes, self.hittableList = [BVHNode(1, hittableList)], hittableList
+        self.nodes, self.hittableList = [BVHNode(1, 0, hittableList)], hittableList
 
         self.hittableLeft, self.hittableRight = [], []
+
+    def addHittable(self, hittable):
+        self.hittableList.append(hittable)
 
     @ti.func 
     def createBoundingBox(self, hittableList):
@@ -144,7 +148,20 @@ class BVHTree:
                     minCost, bestHittableLeft, bestHittableRight = costSplit, hittableLeft, hittableRight 
         return bestHittableLeft, bestHittableRight
     
+    @ti.kernel 
+    def findAddIndex(self, lenLeft: int, lenRight: int) -> ti.types.vector(2, int): #type: ignore
+        addIndexLeft, addIndexRight = 1, 2
+        if lenLeft == 1 and lenRight == 1:
+            addIndexLeft, addIndexRight = 0, 0 
+        elif lenLeft == 1 and lenRight > 1:
+            addIndexLeft, addIndexRight = 0, 0 
+        elif lenLeft > 1 and lenRight == 1:
+            addIndexLeft, addIndexRight = 1, 1 
+        return ti.Vector([addIndexLeft, addIndexRight], int)
+
     def buildTree(self):
+        self.nodes.clear()
+        self.nodes.append(BVHNode(1, 0, self.hittableList))
         i = 0
         while i < len(self.nodes):
             currentNode = self.nodes[i]
@@ -152,10 +169,20 @@ class BVHTree:
             if not currentNode.isLeaf:
                 nodeHittableList = currentNode.hittableList
                 hittableLeft, hittableRight = self.splitHittable(nodeHittableList)
-                self.nodes.append(BVHNode(len(self.nodes), hittableLeft))
-                self.nodes.append(BVHNode(len(self.nodes), hittableRight))
+                    
+                addIndexLeft, addIndexRight = self.findAddIndex(len(self.hittableLeft), len(self.hittableRight))
+                self.nodes.append(BVHNode(len(self.nodes), addIndexLeft, hittableLeft))
+                self.nodes.append(BVHNode(len(self.nodes), addIndexRight, hittableRight))
             i += 1 
 
+    def walkTree(self, ray, rayHitRecord):
+        i = 0
+        while True: 
+            currentNode = self.nodes[i]
+            wasHit = currentNode.hit(ray, rayHitRecord)
+            print(rayHitRecord.tInterval)
+            return wasHit 
+    
 camera = World()
 materialGround = lambertianMaterial(vec3(0.8, 0.8, 0.0))
 materialCenter = lambertianMaterial(vec3(0.1, 0.2, 0.5))
@@ -167,7 +194,7 @@ camera.addHittable(sphere3(vec3(0, 0, -1), 0.5, materialCenter))
 camera.addHittable(sphere3(vec3(0, -100.5, -1), 100, materialGround))
 camera.addHittable(sphere3(vec3(-1, 0, -1), 0.5, materialLeft))
 camera.addHittable(sphere3(vec3(1, 0, -1), 0.5, materialRight))
-camera.addHittable(sphere3(vec3(0, 0, 0), 0.5, materialFront))
+
 testTree = BVHTree(camera.hittable)
 testNode = testTree.nodes[0]
 
@@ -186,7 +213,10 @@ def testSAH():
     print(hittableLeft, hittableRight)
 
 def testTreeBuild():
+    start = time.perf_counter()
     testTree.buildTree()
+    end = time.perf_counter()
+    print(end - start)
 
 newTest = aabb(interval(0, 5), interval(-2, 2), interval(-3, 2))
 
@@ -199,4 +229,10 @@ def testArea():
 #testSplit()
 #testSAH()
 testTreeBuild()
+testTree.addHittable(sphere3(vec3(0, 0, 0), 0.5, materialFront))
+testTreeBuild()
+
+globalHitRecord = hitRecord(vec3(0, 0, 0), vec3(0, 0, 0), True, vec3(0, 0, 0), ray3(vec3(0, 0, 0), vec3(0, 0, 0)), vec3(0, 0, 0), interval(0, 1e10), True)
+
+testTree.walkTree(ray3(vec3(0, 0, 0), vec3(0, 0, -1)), globalHitRecord)
 print([node.isLeaf for node in testTree.nodes].count(True))

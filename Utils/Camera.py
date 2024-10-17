@@ -6,7 +6,7 @@ from Interval import *
 from Hittable import * 
 
 import warnings
-warnings.filterwarnings("ignore") #Taichi throws warnings because classes are used in ti.kernel. We want to ignore these warnings (the classes are specifically designed to allow taichi to work)
+warnings.filterwarnings("ignore") #Taichi throws warnings because list methods are used (and Taichi doesn't handle these but Python does). We want to ignore these warnings (the classes are specifically designed to allow taichi to work)
 
 def cameraKeyMovement(camera, window):
     '''
@@ -364,12 +364,12 @@ class Camera(World):
 
         lightColor, throughput = vec3(0.0, 0.0, 0.0), vec3(1.0, 1.0, 1.0)
         for _ in range(self.maxDepth):
-            didHit, rayHitRecord = self.hitObjects(ray, initDefaultHitRecord(self.tInterval))
+            rayHitRecord = self.hitObjects(ray, initDefaultHitRecord(self.tInterval))
     
-            if didHit and rayHitRecord.didRayScatter:
+            if rayHitRecord.hitAnything and rayHitRecord.didRayScatter:
                 ray = rayHitRecord.rayScatter
                 throughput *= rayHitRecord.rayColor
-            elif didHit and not rayHitRecord.didRayScatter:
+            elif rayHitRecord.hitAnything and not rayHitRecord.didRayScatter:
                 break
             else:
                 rayDirY = getY(tm.normalize(ray.direction))
