@@ -24,4 +24,4 @@ def mortonEncode(boundingBoxCentroid: vec3) -> int: #type: ignore
     Morton encode a 3D vector with floating point numbers ranging from 0 to 1 to represent relative position of the bounding box's centroid. 
     '''
     x, y, z = scaleToInt(boundingBoxCentroid.x), scaleToInt(boundingBoxCentroid.y), scaleToInt(boundingBoxCentroid.z)
-    return (z << 2) | (y << 1) | x
+    return ti.cast((z << 2) | (y << 1) | x, ti.uint32)
