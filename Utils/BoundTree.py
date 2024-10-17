@@ -1,6 +1,6 @@
-from BoundBox import * 
 from Objects import * 
 from Morton import *
+import copy
 
 import warnings
 warnings.filterwarnings("ignore") #Taichi throws warnings because list methods are used (and Taichi doesn't handle these but Python does). We want to ignore these warnings (the classes are specifically designed to allow taichi to work)
@@ -30,20 +30,33 @@ class World:
         '''
         Iterate through the hittable objects list and check the smallest t that it intersects with to get the closest possible object
         '''
-        for i in ti.static(range(len(self.hittable))):
-            tempHitRecord = self.hittable[i].hit(ray, initDefaultHitRecord(rayHitRecord.tInterval))
+        for i in ti.static(range(len(self.hittableList))):
+            tempHitRecord = self.hittableList[i].hit(ray, initDefaultHitRecord(rayHitRecord.tInterval))
             if tempHitRecord.hitAnything:
                 rayHitRecord = copyHitRecord(tempHitRecord)
 
         return rayHitRecord
 
+@ti.dataclass 
+class BVHLeaf:
+    '''
+    This is the leaf node for the BVH Tree 
+    '''
+    objectIndex: int 
+    boundingBox: aabb 
+    mortonCode: int 
+
 @ti.data_oriented 
 class BVHTree:
     def __init__(self, hittableList, centroidScale):
-        self.numLeaves = len(hittableList)
+        self.numLeaves, self.hittableList = len(hittableList), hittableList
         self.minCentroidVec, self.maxCentroidVec = self.getMinCentroidVec(centroidScale), self.getMaxCentroidVec(centroidScale)
-        self.centroidDivider = self.createDivisor()
-        self.leaves = []
+        self.centroidDivisor = self.createDivisor()
+
+        self.leaves = ti.Struct.field({
+            'Leaf': BVHLeaf
+        }, shape = (self.numLeaves,))
+        self.fillLeaves()
 
     @ti.kernel 
     def getMinCentroidVec(self, centroidScale: ti.template()) -> vec3: #type: ignore
@@ -61,8 +74,8 @@ class BVHTree:
         epsilon = 1e-5
         return x < epsilon
 
-    @ti.func 
-    def createDivisor(self):
+    @ti.kernel 
+    def createDivisor(self) -> vec3: #type: ignore
         '''
         Make sure the divisor near divides by zero to ensure that the scaling bounds from [0, 1] so that Morton codes don't throw an error
         '''
@@ -71,21 +84,35 @@ class BVHTree:
             if self.valueNearZero(divisor[i]):
                 divisor[i] = 1
         return 1 / divisor
+    
+    @ti.func 
+    def createMorton(self, boundingBox): #type: ignore
+        '''
+        Create and return a morton code for the BVH leaf
+        '''
+        return mortonEncode(self.scaleCentroid(boundingBox))
 
-@ti.dataclass 
-class BVHLeaf:
-    def __init__(self, hittable, minCentroidVec, divisor):
-        self.object, self.boundingBox = hittable, hittable.boundingBox 
-        self.centroid = self.scaleCentroid(minCentroidVec, divisor)
-        self.mortonCode = mortonEncode(self.centroid)    
-
-    @ti.kernel 
-    def scaleCentroid(self, minCentroidVec: vec3, divisor: vec3) -> vec3: #type: ignore
+    @ti.func 
+    def scaleCentroid(self, boundingBox) -> vec3: #type: ignore
         '''
         Scale the bounding box centroid vector to [0, 1] for determining morton codes
         '''
-        return (self.boundingBox.centroid() - minCentroidVec) * divisor
+        return (boundingBox.centroid() - self.minCentroidVec) * self.centroidDivisor
     
+    @ti.func 
+    def initLeaf(self, i: int, hittable: ti.template()) -> BVHLeaf: #type: ignore 
+        '''
+        Create and return a BVH leaf
+        '''
+        return BVHLeaf(i, hittable.boundingBox, self.createMorton(hittable.boundingBox))
+    
+    @ti.kernel 
+    def fillLeaves(self):
+        '''
+        Fill the structure containing the leaves
+        '''
+        for i in ti.static(range(len(self.hittableList))):
+            self.leaves.Leaf[i] = self.initLeaf(i, self.hittableList[i])
 
 newWorld = World()
 
@@ -100,6 +127,7 @@ def testing():
     newWorld.compileMinAndMaxCentroid()
 
 testing()
-newNode = BVHLeaf(newWorld.hittableList[0], vec3(0, 0, 0), vec3(0, 1, 0))
-print(newNode.object)
-newTree = BVHTree(newWorld.hittableList)
+newTree = BVHTree(newWorld.hittableList, newWorld.centroidScale)
+
+testLeaf = newTree.leaves.Leaf[0].mortonCode
+print(testLeaf)

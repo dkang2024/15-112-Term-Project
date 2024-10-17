@@ -18,8 +18,8 @@ def scaleToInt(value):
     '''
     return int(ti.min(value * 1024, 1023)) 
 
-@ti.func 
-def mortonEncode(boundingBoxCentroid: vec3): #type: ignore 
+@ti.func
+def mortonEncode(boundingBoxCentroid: vec3) -> int: #type: ignore 
     '''
     Morton encode a 3D vector with floating point numbers ranging from 0 to 1 to represent relative position of the bounding box's centroid. 
     '''

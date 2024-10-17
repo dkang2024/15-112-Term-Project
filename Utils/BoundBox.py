@@ -47,7 +47,7 @@ class aabb:
         return 2 * xLength * yLength + 2 * xLength * zLength + 2 * yLength * zLength 
     
     @ti.func 
-    def centroid(self):
+    def centroid(self) -> vec3: #type: ignore
         '''
         Return the position of the centroid of the bounding Box
         '''

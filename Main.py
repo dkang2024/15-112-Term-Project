@@ -9,11 +9,11 @@ def renderScene(cameraPos: vec3, imageWidth: int, fov: float, focalLength: float
     materialRight = reflectiveMaterial(vec3(0.8, 0.6, 0.2), 0.5)
     materialFront = reflectiveMaterial(vec3(0.8, 0.8, 0.8), 0.2)
 
-    camera.addHittable(initSphere(vec3(0, 0, -1), 0.5, materialCenter))
-    camera.addHittable(initSphere(vec3(0, -100.5, -1), 100, materialGround))
-    camera.addHittable(initSphere(vec3(-1, 0, -1), 0.5, materialLeft))
-    camera.addHittable(initSphere(vec3(1, 0, -1), 0.5, materialRight))
-    camera.addHittable(initSphere(vec3(0, 0, 0), 0.5, materialFront))
+    camera.addHittable(sphere3(vec3(0, 0, -1), 0.5, materialCenter))
+    camera.addHittable(sphere3(vec3(0, -100.5, -1), 100, materialGround))
+    camera.addHittable(sphere3(vec3(-1, 0, -1), 0.5, materialLeft))
+    camera.addHittable(sphere3(vec3(1, 0, -1), 0.5, materialRight))
+    camera.addHittable(sphere3(vec3(0, 0, 0), 0.5, materialFront))
 
     window = ti.ui.Window('Render Test', res = (camera.imageWidth, camera.imageHeight), pos = (100, 100))
     canvas = window.get_canvas()
