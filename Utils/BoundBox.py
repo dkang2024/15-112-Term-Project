@@ -45,6 +45,10 @@ class aabb:
         '''
         xLength, yLength, zLength = self.x.length(), self.y.length(), self.z.length()
         return 2 * xLength * yLength + 2 * xLength * zLength + 2 * yLength * zLength 
+    
+    @ti.func 
+    def centroid(self):
+        return (self.x.length() + self.y.length() + self.z.length()) * 0.5
 
     @ti.func 
     def hit(self, ray, tempHitRecord):
