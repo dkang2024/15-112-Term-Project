@@ -1,6 +1,7 @@
 from Objects import * 
 from Morton import *
-import copy
+import time 
+from taichi.algorithms import parallel_sort
 
 import warnings
 warnings.filterwarnings("ignore") #Taichi throws warnings because list methods are used (and Taichi doesn't handle these but Python does). We want to ignore these warnings (the classes are specifically designed to allow taichi to work)
@@ -44,19 +45,24 @@ class BVHLeaf:
     '''
     objectIndex: int 
     boundingBox: aabb 
-    mortonCode: int 
 
 @ti.data_oriented 
 class BVHTree:
     def __init__(self, hittableList, centroidScale):
-        self.numLeaves, self.hittableList = len(hittableList), hittableList
+        self.hittableList = hittableList
         self.minCentroidVec, self.maxCentroidVec = self.getMinCentroidVec(centroidScale), self.getMaxCentroidVec(centroidScale)
         self.centroidDivisor = self.createDivisor()
 
         self.leaves = ti.Struct.field({
             'Leaf': BVHLeaf
-        }, shape = (self.numLeaves,))
+        }, shape = (self.numLeaves(),))
+        self.mortonCodes = ti.field(int, shape = (self.numLeaves(),))
         self.fillLeaves()
+        self.sortLeaves()
+
+    @ti.kernel 
+    def numLeaves(self) -> int:
+        return len(self.hittableList)
 
     @ti.kernel 
     def getMinCentroidVec(self, centroidScale: ti.template()) -> vec3: #type: ignore
@@ -100,11 +106,11 @@ class BVHTree:
         return (boundingBox.centroid() - self.minCentroidVec) * self.centroidDivisor
     
     @ti.func 
-    def initLeaf(self, i: int, hittable: ti.template()) -> BVHLeaf: #type: ignore 
+    def initLeaf(self, i: int, hittable: ti.template()): #type: ignore 
         '''
         Create and return a BVH leaf
         '''
-        return BVHLeaf(i, hittable.boundingBox, self.createMorton(hittable.boundingBox))
+        return BVHLeaf(i, hittable.boundingBox), self.createMorton(hittable.boundingBox)
     
     @ti.kernel 
     def fillLeaves(self):
@@ -112,8 +118,17 @@ class BVHTree:
         Fill the structure containing the leaves
         '''
         for i in ti.static(range(len(self.hittableList))):
-            self.leaves.Leaf[i] = self.initLeaf(i, self.hittableList[i])
+            self.leaves.Leaf[i], self.mortonCodes[i] = self.initLeaf(i, self.hittableList[i])
 
+    def sortLeaves(self):
+        '''
+        Sort the leaves according to morton code
+        '''
+        start = time.perf_counter()
+        parallel_sort(self.mortonCodes, self.leaves) 
+        end = time.perf_counter()
+        print(end - start)
+        
 newWorld = World()
 
 materialLeft = dielectricMaterial(1.0 / 1.3)
@@ -127,7 +142,9 @@ def testing():
     newWorld.compileMinAndMaxCentroid()
 
 testing()
-newTree = BVHTree(newWorld.hittableList, newWorld.centroidScale)
 
-testLeaf = newTree.leaves.Leaf[0].mortonCode
-print(testLeaf)
+newTree = BVHTree(newWorld.hittableList, newWorld.centroidScale)
+start = time.perf_counter()
+newTree = BVHTree(newWorld.hittableList, newWorld.centroidScale)
+end = time.perf_counter()
+print(newTree.mortonCodes, end - start)
