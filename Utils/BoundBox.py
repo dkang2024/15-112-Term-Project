@@ -49,7 +49,7 @@ class aabb:
     @ti.func 
     def centroid(self) -> vec3: #type: ignore
         '''
-        Return the position of the centroid of the bounding Box
+        Return the position of the centroid of the bounding Box rescaled to [0, 1]
         '''
         return vec3(self.x.minValue, self.y.minValue, self.z.minValue) + vec3(self.x.length(), self.y.length(), self.z.length()) * 0.5
 

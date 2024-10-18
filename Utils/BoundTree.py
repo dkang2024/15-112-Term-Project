@@ -12,7 +12,7 @@ class World:
     Sets the world scene for all hittable objects
     '''
     def __init__(self):
-        self.hittableList, self.centroidScale = [], ti.Vector.field(3, float, shape = (2,))
+        self.hittableList, self.tree, self.centroidField = [], [], []
     
     @ti.kernel 
     def addHittable(self, hittableObject: ti.template()): #type: ignore
@@ -21,10 +21,19 @@ class World:
         '''
         self.hittableList.append(hittableObject)
 
-    @ti.func
-    def compileMinAndMaxCentroid(self):
-        centroids = [self.hittableList[i].boundingBox.centroid() for i in ti.static(range(len(self.hittableList)))]
-        self.centroidScale[0], self.centroidScale[1] = ti.min(*centroids), ti.max(*centroids)
+    @ti.kernel 
+    def compileTree(self):
+        start = time.perf_counter()
+        minCentroidVec, maxCentroidVec = self.compileMinAndMaxCentroid()
+        end = time.perf_counter()
+        print(f'Compile: {end - start}')
+
+        #self.tree.append(BVHTree(self.hittableList, *self.compileMinAndMaxCentroid()))
+
+    @ti.func 
+    def compileMinAndMaxCentroid(self): #type: ignore
+        centroids = [self.hittableList[i].center for i in ti.static(range(len(self.hittableList)))]
+        return ti.min(*centroids), ti.max(*centroids)
     
     @ti.func
     def hitObjects(self, ray, rayHitRecord):
@@ -48,28 +57,24 @@ class BVHLeaf:
 
 @ti.data_oriented 
 class BVHTree:
-    def __init__(self, hittableList, centroidScale):
+    def __init__(self, hittableList, minCentroidVec, maxCentroidVec):
+        start = time.perf_counter()
         self.numLeaves, self.hittableList = len(hittableList), hittableList
-        self.minCentroidVec, self.maxCentroidVec = self.getMinCentroidVec(centroidScale), self.getMaxCentroidVec(centroidScale)
-        self.centroidDivisor = self.createDivisor()
+        self.minCentroidVec, self.maxCentroidVec = minCentroidVec, maxCentroidVec
+        centroidDivisor = self.createDivisor()
+        end = time.perf_counter()
+        print(f'Init: {end - start}')
 
         self.leaves = ti.Struct.field({
             'Leaf': BVHLeaf
         }, shape = (self.numLeaves,))
         self.mortonCodes = ti.field(ti.uint32, shape = (self.numLeaves,))
-        self.fillLeaves()
+
+        self.fillLeaves(centroidDivisor)
         self.sortLeaves()
-
-        self.nodes = ti.Vector.field(4, int, shape = (self.numLeaves - 1,)) #Keep track of nodes in the tree through keeping track of 
+        
+        self.nodes = ti.Vector.field(4, int, shape = (self.numLeaves - 1,)) #Keep track of nodes in the tree through keeping track of their child ranges and children split (note that if child split is greater than )
         self.generateNodes()
-
-    @ti.kernel 
-    def getMinCentroidVec(self, centroidScale: ti.template()) -> vec3: #type: ignore
-        return centroidScale[0]
-    
-    @ti.kernel 
-    def getMaxCentroidVec(self, centroidScale: ti.template()) -> vec3: #type: ignore 
-        return centroidScale[1]
 
     @ti.func 
     def valueNearZero(self, x):
@@ -79,7 +84,7 @@ class BVHTree:
         epsilon = 1e-5
         return x < epsilon
 
-    @ti.kernel 
+    @ti.kernel
     def createDivisor(self) -> vec3: #type: ignore
         '''
         Make sure the divisor near divides by zero to ensure that the scaling bounds from [0, 1] so that Morton codes don't throw an error
@@ -91,33 +96,33 @@ class BVHTree:
         return 1 / divisor
     
     @ti.func 
-    def createMorton(self, boundingBox): #type: ignore
+    def createMorton(self, boundingBox, centroidDivisor): #type: ignore
         '''
         Create and return a morton code for the BVH leaf
         '''
-        return mortonEncode(self.scaleCentroid(boundingBox))
+        return mortonEncode(self.scaleCentroid(boundingBox, centroidDivisor))
 
     @ti.func 
-    def scaleCentroid(self, boundingBox) -> vec3: #type: ignore
+    def scaleCentroid(self, boundingBox, centroidDivisor) -> vec3: #type: ignore
         '''
         Scale the bounding box centroid vector to [0, 1] for determining morton codes
         '''
-        return (boundingBox.centroid() - self.minCentroidVec) * self.centroidDivisor
+        return (boundingBox.centroid() - self.minCentroidVec) * centroidDivisor
     
     @ti.func 
-    def initLeaf(self, i: int, hittable: ti.template()): #type: ignore 
+    def initLeaf(self, i: int, hittable: ti.template(), centroidDivisor): #type: ignore 
         '''
         Create and return a BVH leaf
         '''
-        return BVHLeaf(i, hittable.boundingBox), self.createMorton(hittable.boundingBox)
+        return BVHLeaf(i, hittable.boundingBox), self.createMorton(hittable.boundingBox, centroidDivisor)
     
-    @ti.kernel 
-    def fillLeaves(self):
+    @ti.kernel
+    def fillLeaves(self, centroidDivisor: vec3): #type: ignore
         '''
         Fill the structure containing the leaves
         '''
-        for i in ti.static(range(len(self.hittableList))):
-            self.leaves.Leaf[i], self.mortonCodes[i] = self.initLeaf(i, self.hittableList[i])
+        for i in ti.static(range(self.numLeaves)):
+            self.leaves.Leaf[i], self.mortonCodes[i] = self.initLeaf(i, self.hittableList[i], centroidDivisor)
 
     def sortLeaves(self):
         '''
@@ -231,9 +236,9 @@ class BVHTree:
         '''
         Generate the nodes in the tree
         '''
-        for i in ti.static(range(self.numLeaves - 1)):
+        for i in range(self.numLeaves - 1):
             firstIndex, lastIndex = self.determineRange(i)
-
+            
             split = self.findSplit(firstIndex, lastIndex)
             
             leftSplit = split 
@@ -255,7 +260,7 @@ class BVHTree:
         Generate a bounding box given the hittable list start index and end index (needed for transversal of the BVH Tree)
         '''
         boundingBox = self.hittableList[startIndex].boundingBox 
-        for i in ti.static(range(startIndex + 1, endIndex)):
+        for i in range(startIndex + 1, endIndex):
             boundingBox.addBoundingBox(self.hittableList[i].boundingBox)
         return boundingBox 
     
@@ -270,6 +275,7 @@ class BVHTree:
 
 camera = World()
 
+start = time.time()
 materialGround = lambertianMaterial(vec3(0.8, 0.8, 0.0))
 materialCenter = lambertianMaterial(vec3(0.1, 0.2, 0.5))
 materialLeft = dielectricMaterial(1.0 / 1.3)
@@ -281,20 +287,7 @@ camera.addHittable(sphere3(vec3(0, -100.5, -1), 100, materialGround))
 camera.addHittable(sphere3(vec3(-1, 0, -1), 0.5, materialLeft))
 camera.addHittable(sphere3(vec3(1, 0, -1), 0.5, materialRight))
 camera.addHittable(sphere3(vec3(0, 0, 0), 0.5, materialFront))
+end = time.time()
+print(end - start)
 
-@ti.kernel 
-def testing():
-    camera.compileMinAndMaxCentroid()
-
-testing()
-
-start = time.perf_counter()
-newTree = BVHTree(camera.hittableList, camera.centroidScale)
-end = time.perf_counter()
-
-def printValuables():
-    node = newTree.nodes[0]
-    print(node[0], node[1], node[2], node[3])
-
-printValuables()
-print(newTree.mortonCodes, newTree.leaves.Leaf[1].objectIndex, newTree.nodes[0], end - start)
+camera.compileTree()
