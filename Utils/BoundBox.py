@@ -21,6 +21,10 @@ class aabb:
         elif index == 2: 
             pointInterval = self.z 
         return pointInterval
+    
+    @ti.func 
+    def returnCopy(self):
+        return aabb(copyInterval(self.x), copyInterval(self.y), copyInterval(self.z))
 
     @ti.func 
     def calculateIntersection(self, axisValue, rayOrigin, inverseRayDirection):

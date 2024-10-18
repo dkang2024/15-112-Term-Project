@@ -1,17 +1,21 @@
 import taichi as ti 
-import taichi.math as tm 
-import time
+import warnings 
+from typing import Union
+warnings.filterwarnings("ignore") #Taichi throws warnings because list methods are used (and Taichi doesn't handle these but Python does). We want to ignore these warnings (the classes are specifically designed to allow taichi to work)
 
-ti.init(ti.gpu)
+ti.init(ti.cpu)
 
-vec3 = tm.vec3 
+@ti.dataclass 
+class Mat1:
+    value: int 
 
-@ti.kernel 
-def subtract(vec1: vec3, vec2: vec3) -> vec3: #type: ignore 
-    return vec2 - vec1
+@ti.dataclass 
+class Mat2:
+    value: float 
 
-start = time.time()
-subtract(vec3(2, 1, 0), vec3(5, 4, 2))
-print(vec3(1, 2, 3))
-end = time.time()
-print(end - start)
+@ti.dataclass 
+class sphere:
+    material1: Mat1 
+    material2: Mat2
+
+newSphere = sphere(Mat2(1))
