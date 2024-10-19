@@ -1,5 +1,6 @@
 from Rays import * 
 from Interval import *
+from taichi.algorithms import parallel_sort 
 
 @ti.dataclass
 class aabb:
