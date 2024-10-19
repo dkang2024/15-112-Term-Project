@@ -42,13 +42,13 @@ class BVHTree:
         '''
         return (hittable.center - self.centroidScale[0]) * self.divisor[None]
     
-    @ti.kernel 
+    @ti.func 
     def fillLeaves(self): #type: ignore
         '''
         Fill the structure containing the leaves
         '''
         self.createDivisor()
-        for i in ti.static(ti.ndrange(self.numLeaves)):
+        for i in ti.ndrange(self.numLeaves[None]):
             self.leaves[i].mortonCode = self.createMorton(self.hittableList[i])
 
     @ti.func 
@@ -99,7 +99,7 @@ class BVHTree:
         '''
         Determine the range for firstIndex and lastIndex. PLEASE NOTE that I should get absolutely no credit for this. I could not (for the life of me) understand the algorithm so I copy pasted https://github.com/archibate/ptina/blob/master/ptina/tree/lbvh.py.
         '''
-        l, r = 0, self.numLeaves - 1
+        l, r = 0, self.numLeaves[None] - 1
 
         if i != 0:
             ic = self.leaves.mortonCode[i]
@@ -108,9 +108,9 @@ class BVHTree:
 
             if lc == ic == rc:
                 l = i
-                while i < self.numLeaves - 1:
+                while i < self.numLeaves[None] - 1:
                     i += 1
-                    if i >= self.numLeaves - 1:
+                    if i >= self.numLeaves[None] - 1:
                         break
                     if self.leaves.mortonCode[i] != self.leaves.mortonCode[i + 1]:
                         break
@@ -127,20 +127,20 @@ class BVHTree:
                 lmax = 2
                 delta = -1
                 itmp = i + d * lmax
-                if 0 <= itmp < self.numLeaves:
+                if 0 <= itmp < self.numLeaves[None]:
                     delta = self.countLeadingZeros(ic ^ self.leaves.mortonCode[itmp])
                 while delta > delta_min:
                     lmax <<= 1
                     itmp = i + d * lmax
                     delta = -1
-                    if 0 <= itmp < self.numLeaves:
+                    if 0 <= itmp < self.numLeaves[None]:
                         delta = self.countLeadingZeros(ic ^ self.leaves.mortonCode[itmp])
                 s = 0
                 t = lmax >> 1
                 while t > 0:
                     itmp = i + (s + t) * d
                     delta = -1
-                    if 0 <= itmp < self.numLeaves:
+                    if 0 <= itmp < self.numLeaves[None]:
                         delta = self.countLeadingZeros(ic ^ self.leaves.mortonCode[itmp])
                     if delta > delta_min:
                         s += t
@@ -162,35 +162,39 @@ class BVHTree:
             boundingBox.addBoundingBox(self.leaves[i].boundingBox)
         return boundingBox
 
+    @ti.func 
     def sortLeaves(self):
         '''
         Sort the leaves in ascending order based on their Morton codes
         '''
-        parallel_sort(self.leaves.mortonCode, self.leaves)
+        selectionSort(self.leaves)
 
-    @ti.kernel  
+    @ti.func 
     def generateNodes(self):
         '''
         Generate the nodes in the tree
         '''
-        for i in ti.static(range(self.numLeaves - 1)):
+
+        for i in ti.ndrange(self.numLeaves[None] - 1):
+            print('HERE', self.numLeaves)
             firstIndex, lastIndex = self.determineRange(i)
             split = self.findSplit(firstIndex, lastIndex)
             print(f'First, Last Index, and Split: {firstIndex}, {lastIndex}, {split}')
 
             leftSplit = split 
             if leftSplit != firstIndex:
-                leftSplit += self.numLeaves #Add the number of leaves to make the split out of index of the Morton Codes to indicate that the child is another node
+                leftSplit += self.numLeaves[None] #Add the number of leaves to make the split out of index of the Morton Codes to indicate that the child is another node
             else:
                 print(self.leaves[leftSplit].objectIndex)
             
             rightSplit = split + 1
             if rightSplit != lastIndex:
-                rightSplit += self.numLeaves #Add the number of leaves to make the split out of index of the Morton Codes to indicate that the child is another node
+                rightSplit += self.numLeaves[None] #Add the number of leaves to make the split out of index of the Morton Codes to indicate that the child is another node
             else: 
                 print(self.leaves[rightSplit].objectIndex)
             
             self.nodes[i].boundingBox = self.generateBoundingBox(firstIndex, lastIndex)
+            print('Bounding Box:', self.nodes[i].boundingBox.x.minValue, self.nodes[i].boundingBox.x.maxValue, self.nodes[i].boundingBox.y.minValue, self.nodes[i].boundingBox.y.maxValue, self.nodes[i].boundingBox.z.minValue, self.nodes[i].boundingBox.z.maxValue)
             self.nodes[i].leftChild = leftSplit 
             self.nodes[i].rightChild = rightSplit 
     
@@ -200,9 +204,9 @@ class BVHTree:
         Take care of the case that the child is a node 
         '''
         isLeaf = False  
-        if childIndex >= self.numLeaves:
+        if childIndex >= self.numLeaves[None]:
             isLeaf = True 
-            childIndex -= self.numLeaves
+            childIndex -= self.numLeaves[None]
         return isLeaf, childIndex
 
     @ti.func 
@@ -272,40 +276,34 @@ class World(BVHTree):
     def __init__(self):
         self.hittableList = []
         self.divisor, self.centroidScale = ti.Vector.field(3, float, shape = ()), ti.Vector.field(3, float, shape = (2,))
+        self.numLeaves = ti.field(int, shape = ())
+        self.leaves = ti.Struct.field({
+            'objectIndex': int, 
+            'mortonCode': int, 
+            'boundingBox': aabb 
+        }, shape = (100,))
+        self.nodes = ti.Struct.field({
+            'boundingBox': aabb, 
+            'leftChild': int, 
+            'rightChild': int 
+        }, shape = (100,)) #Keep track of nodes in the tree through keeping track of their child ranges and children split (note that if child split is greater than)
         
     def addHittable(self, hittableObject): #type: ignore
         '''
         Add a hittable object and its classification 
         '''
         self.hittableList.append(hittableObject)
-
-    def compileFields(self):
-        '''
-        Compile the fields that the BVH Tree needs to use based on the length of the hittable list (YOU MUST CALL THIS IN PYTHON SCOPE BEFORE ACTUALLY COMPILING THE TREE)
-        '''
-        self.numLeaves = len(self.hittableList)
-        self.leaves = ti.Struct.field({
-            'objectIndex': int, 
-            'mortonCode': int, 
-            'boundingBox': aabb 
-        }, shape = (self.numLeaves,))
-        self.initLeaves()
-        self.nodes = ti.Struct.field({
-            'boundingBox': aabb, 
-            'leftChild': int, 
-            'rightChild': int 
-        }, shape = (self.numLeaves - 1)) #Keep track of nodes in the tree through keeping track of their child ranges and children split (note that if child split is greater than)
         
-    @ti.kernel 
+    @ti.func 
     def initLeaves(self):
         '''
         Fill the leaves field with the bounding boxes and object indicies for compiling the BVH Tree 
         '''
-        for i in ti.static(range(self.numLeaves)):
+        for i in ti.ndrange(self.numLeaves[None]):
             self.leaves[i].objectIndex = i 
             self.leaves[i].boundingBox = self.hittableList[i].boundingBox
 
-    @ti.kernel 
+    @ti.func 
     def compileMinAndMaxCentroid(self): #type: ignore
         '''
         Return the minimum and maximum values for all the centers of all the objects in order to rescale the centers to [0, 1]
@@ -313,10 +311,17 @@ class World(BVHTree):
         centroids = [self.hittableList[i].center for i in ti.static(range(len(self.hittableList)))]
         self.centroidScale[0], self.centroidScale[1] = ti.min(*centroids), ti.max(*centroids)
 
+    @ti.func 
+    def initNumLeaves(self):
+        self.numLeaves[None] = len(self.hittableList)
+
+    @ti.func 
     def compileTree(self):
         '''
         Compile the BVH Tree for the world
         '''
+        self.initNumLeaves()
+        self.initLeaves()
         self.compileMinAndMaxCentroid()
         self.fillLeaves()
         self.sortLeaves()
@@ -327,17 +332,13 @@ class World(BVHTree):
         '''
         Iterate through the hittable objects list and check the smallest t that it intersects with to get the closest possible object
         '''
-        for i in ti.static(range(self.numLeaves)):
+        for i in ti.ndrange(self.numLeaves[None]):
             tempHitRecord = self.hittableList[i].hit(ray, initDefaultHitRecord(rayHitRecord.tInterval))
             if tempHitRecord.hitAnything:
                 rayHitRecord = copyHitRecord(tempHitRecord)
 
         return rayHitRecord
 
-def testCompile():
-    camera.compileTree()
-
-start = time.perf_counter()
 camera = World()
 materialGround = lambertianMaterial(vec3(0.8, 0.8, 0.0))
 materialCenter = lambertianMaterial(vec3(0.1, 0.2, 0.5))
@@ -348,25 +349,22 @@ materialFront = reflectiveMaterial(vec3(0.8, 0.8, 0.8), 0.2)
 camera.addHittable(sphere3(vec3(0, 0, -1), 0.5, materialCenter))
 camera.addHittable(sphere3(vec3(0, -100.5, -1), 100, materialGround))
 
-camera.compileFields()
-end = time.perf_counter()
+@ti.kernel 
+def testCompile():
+    camera.compileTree()
 
 start = time.perf_counter()
-camera.compileTree()
+testCompile()
 end = time.perf_counter()
-print(f'Compile Tree: {end - start}')
+print('Compile 1', end - start)
 
 camera.addHittable(sphere3(vec3(-1, 0, -1), 0.5, materialLeft))
 camera.addHittable(sphere3(vec3(1, 0, -1), 0.5, materialRight))
 camera.addHittable(sphere3(vec3(0, 0, 0), 0.5, materialFront))
-
-
 start = time.perf_counter()
-camera.compileFields()
+testCompile()
 end = time.perf_counter()
-print(f'Compile Tree 2: {end - start}')
-camera.compileTree()
-
+print('Compile 2', end - start)
 
 
 @ti.kernel 

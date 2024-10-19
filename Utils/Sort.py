@@ -1,15 +1,11 @@
 from Vectors import *
 
 @ti.func 
-def selectionSort(leaves):
-    numLeaves = leaves.shape[0]
-    for i in leaves:
-        minIndex = i 
-        for j in ti.ndrange((i + 1, numLeaves)):
-            if leaves.mortonCode[j] < leaves.mortonCode[minIndex]:
-                minIndex = j 
-        objectIndex, mortonCode, boundingBox = leaves[i].objectIndex, leaves[i].mortonCode, leaves[i].boundingBox
-        leaves[i] = leaves[minIndex]
-        leaves[minIndex].objectIndex = objectIndex
-        leaves[minIndex].mortonCode = mortonCode 
-        leaves[minIndex].boundingBox = boundingBox
+def selectionSort(leaves: ti.template()): #type: ignore
+    numberLeaves = leaves.shape[0]
+    for i in range(numberLeaves):
+        minIndex = i
+        for j in range(i + 1, numberLeaves):
+            if leaves[j].mortonCode < leaves[minIndex].mortonCode:
+                minIndex = j
+        leaves[i], leaves[minIndex] = leaves[minIndex], leaves[i]
