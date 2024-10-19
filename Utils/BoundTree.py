@@ -181,7 +181,7 @@ class BVHTree:
         for i in ti.static(range(self.numLeaves - 1)):
             firstIndex, lastIndex = self.determineRange(i)
             split = self.findSplit(firstIndex, lastIndex)
-            
+            print(split, split + 1, firstIndex, lastIndex)
             leftSplit = split 
             if leftSplit == firstIndex:
                 leftSplit += self.numLeaves #Add the number of leaves to make the split out of index of the Morton Codes to indicate that the child is a leaf 
@@ -206,22 +206,63 @@ class BVHTree:
         return isLeaf, childIndex
 
     @ti.func 
+    def checkChild(self, isLeaf, childIndex, ray, rayHitRecord):
+        '''
+        Check if the child is hit and return the resulting hit record
+        '''
+        boundingBox = self.boundingBoxes.boundingBox[childIndex]
+        if not isLeaf:
+            boundingBox = self.nodes.boundingBox[childIndex]
+        return boundingBox.hit(ray, initDefaultHitRecord(rayHitRecord.tInterval))
+    
+    @ti.func 
+    def sortWithBothChildrenHit(self, leftIsLeaf, rightIsLeaf, leftNodeIndex, rightNodeIndex, rayHitRecord, leftChildHitRecord, rightChildHitRecord):
+        '''
+        Sort with both children being hit by the ray. Adding rayHitRecord as a parameter is required for Taichi to not throw an error because it has to be defined before the if statements 
+        '''
+        isLeaf, nodeIndex = False, leftNodeIndex
+        if leftChildHitRecord.t() <= rightChildHitRecord.t():
+            rayHitRecord = copyHitRecord(leftChildHitRecord)
+            if leftIsLeaf: 
+                isLeaf = True 
+        else: 
+            rayHitRecord, nodeIndex = copyHitRecord(rightChildHitRecord), rightNodeIndex
+            if rightIsLeaf:
+                isLeaf = True 
+        return isLeaf, nodeIndex, rayHitRecord
+
+    @ti.func 
     def walkTree(self, ray, rayHitRecord):
         '''
         Walk the tree to determine if the ray hit any bounding box
         '''
-        nodeIndex = 0
+        nodeIndex, isLeaf = 0, False
         while True: 
-            boundingBox = self.nodes[nodeIndex].boundingBox 
-            rayHitRecord = boundingBox.hit(ray, rayHitRecord)
+            if nodeIndex == 0:
+                boundingBox = self.nodes[nodeIndex].boundingBox 
+                rayHitRecord = boundingBox.hit(ray, rayHitRecord)
             if rayHitRecord.hitAnything: 
                 leftIsLeaf, leftChild = self.convertChildIndex(self.nodes[nodeIndex].leftChild)
                 rightIsLeaf, rightChild = self.convertChildIndex(self.nodes[nodeIndex].rightChild)
 
-                leftChildHitRecord, rightChildHitRecord = initDefaultHitRecord(rayHitRecord.tInterval), initDefaultHitRecord(rayHitRecord.tInterval)
+                print(leftIsLeaf, rightIsLeaf, leftChild, rightChild)
+                leftChildHitRecord = self.checkChild(leftIsLeaf, leftChild, ray, rayHitRecord)
+                rightChildHitRecord = self.checkChild(rightIsLeaf, rightChild, ray, rayHitRecord)
 
-            break 
-        return rayHitRecord.hitAnything
+                if leftChildHitRecord.hitAnything and rightChildHitRecord.hitAnything: #If ray hits both children, sort by which tInterval is lesser 
+                    isLeaf, nodeIndex, rayHitRecord = self.sortWithBothChildrenHit(leftIsLeaf, rightIsLeaf, leftChild, rightChild, rayHitRecord, leftChildHitRecord, rightChildHitRecord)
+                    print(isLeaf, nodeIndex, leftChild)
+                elif leftChildHitRecord.hitAnything: 
+                    isLeaf, nodeIndex, rayHitRecord = leftIsLeaf, leftChild, leftChildHitRecord 
+                elif rightChildHitRecord.hitAnything:
+                    isLeaf, nodeIndex, rayHitRecord = rightIsLeaf, rightChild, rightChildHitRecord 
+                else: 
+                    break 
+                
+                if isLeaf: 
+                    break
+                    
+        return nodeIndex, rayHitRecord
 
 @ti.data_oriented 
 class World(BVHTree): 
@@ -290,17 +331,30 @@ class World(BVHTree):
 
         return rayHitRecord
 
+@ti.kernel 
+def testCompile():
+    camera.compileTree()
+
+start = time.perf_counter()
 camera = World()
-
-
-materialGround = lambertianMaterial(vec3(0.8, 0.8, 0.0))
 materialCenter = lambertianMaterial(vec3(0.1, 0.2, 0.5))
+materialGround = lambertianMaterial(vec3(0.8, 0.8, 0.0))
+camera.addHittable(sphere3(vec3(0, 0, -1), 0.5, materialCenter))
+camera.addHittable(sphere3(vec3(0, -100.5, -1), 100, materialGround))
+camera.compileFields()
+testCompile()
+end = time.perf_counter()
+print(end - start)
+
+
+
+
 materialLeft = dielectricMaterial(1.0 / 1.3)
 materialRight = reflectiveMaterial(vec3(0.8, 0.6, 0.2), 0.5)
 materialFront = reflectiveMaterial(vec3(0.8, 0.8, 0.8), 0.2)
 
-camera.addHittable(sphere3(vec3(0, 0, -1), 0.5, materialCenter))
-camera.addHittable(sphere3(vec3(0, -100.5, -1), 100, materialGround))
+
+
 camera.addHittable(sphere3(vec3(-1, 0, -1), 0.5, materialLeft))
 camera.addHittable(sphere3(vec3(1, 0, -1), 0.5, materialRight))
 camera.addHittable(sphere3(vec3(0, 0, 0), 0.5, materialFront))
@@ -310,9 +364,7 @@ camera.compileFields()
 end = time.perf_counter()
 print(f'Init Starting: {end - start}')
 
-@ti.kernel 
-def testCompile():
-    camera.compileTree()
+
 
 start = time.perf_counter()
 testCompile()
@@ -324,10 +376,31 @@ testCompile()
 end = time.perf_counter()
 print(f'In Kernel Out of Compile: {end - start}')
 
-print(camera.nodes[1].boundingBox.z.maxValue)
+camera.addHittable(sphere3(vec3(0, 0, 0), 0.5, materialFront))
+
+start = time.perf_counter()
+camera.compileFields()
+end = time.perf_counter()
+print(f'Init Starting 2: {end - start}')
+
+start = time.perf_counter()
+testCompile()
+end = time.perf_counter()
+print(f'In Kernel Out of Compile 2: {end - start}')
+
 
 @ti.kernel 
 def testTreeWalk():
-    camera.walkTree(defaultRay(), initDefaultHitRecord(interval(0.001, 1e10)))
+    nodeIndex, nodeHitRecord = camera.walkTree(ray3(vec3(0, 0, -2), vec3(0, 0, -1)), initDefaultHitRecord(interval(0.001, 1e10)))
+    print(nodeIndex)
 
-testTreeWalk()
+start = time.perf_counter()
+#testTreeWalk()
+end = time.perf_counter()
+print(f'Walk Tree: {end - start}')
+
+start = time.perf_counter()
+#testTreeWalk()
+end = time.perf_counter()
+print(f'Walk Tree 2: {end - start}')
+
